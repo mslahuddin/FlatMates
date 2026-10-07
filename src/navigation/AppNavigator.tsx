@@ -1,14 +1,20 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {ComingSoon} from '../screens/ComingSoon';
-import {Welcome} from '../screens/Welcome';
+
+import Welcome from '../screens/Auth/Welcome';
+import SignUp from '../screens/Auth/SignUp';
+import SignIn from '../screens/Auth/SignIn';
 import {useColors} from '../theme';
-import type {RootStackParamList} from './types';
 
+// Navigation types
+export type RootStackParamList = {
+  Welcome: undefined;
+  SignUp: undefined;
+  SignIn: undefined;
+};
 
-
-
+// Create Stack Navigator
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
@@ -21,18 +27,28 @@ export function AppNavigator() {
         screenOptions={{
           headerShadowVisible: false,
           headerTintColor: colors.accent,
-          headerStyle: {backgroundColor: colors.background},
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
           headerTitle: '',
           headerBackTitle: 'Back',
-        }}>
+        }}
+      >
         <Stack.Screen
           name="Welcome"
           component={Welcome}
           options={{headerShown: false}}
         />
-        {/* Placeholders until the real screens are built. */}
-        <Stack.Screen name="SignUp" component={ComingSoon} />
-        <Stack.Screen name="SignIn" component={ComingSoon} />
+
+        <Stack.Screen
+          name="SignUp"
+          component={SignUp}
+        />
+
+        <Stack.Screen
+          name="SignIn"
+          component={SignIn}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
