@@ -185,3 +185,89 @@ export async function joinFlat(rawCode: string) {
     return {flatId};
   });
 }
+
+
+//////
+
+ 
+/** Reads the caller's flat inside a transaction. Reads must happen before any writes. */
+async function readOwnFlat(
+  tx: Parameters<Parameters<typeof runTransaction>[1]>[0],
+  uid: string,
+) {
+  const userRef = doc(db, 'users', uid);
+  const userSnap = await tx.get(userRef);
+  const flatId: string | undefined = userSnap.data()?.flatId ?? undefined;
+  if (!flatId) {
+    throw flatError('not-in-flat');
+  }
+  const flatRef = doc(db, 'flats', flatId);
+  const flatSnap = await tx.get(flatRef);
+  if (!flatSnap.exists()) {
+    throw flatError('not-in-flat');
+  }
+  const flat = flatSnap.data() as Omit<Flat, 'id'>;
+  const codeRef = doc(db, 'inviteCodes', flat.inviteCode);
+  const codeSnap = await tx.get(codeRef);
+  return {userRef, flatId, flatRef, flat, codeRef, codeSnap};
+}
+ 
+/** Removes a flatmate. Only the flat owner can do this, and never to themselves. */
+export async function removeMember(memberId: string) {
+  const user = currentUser();
+  if (!memberId || memberId === user.uid) {
+    throw flatError('invalid-input');
+  }
+ 
+  return runTransaction(db, async tx => {
+    const {flatId, flat, codeRef, codeSnap} = await readOwnFlat(tx, user.uid);
+    if (flat.ownerId !== user.uid) {
+      throw flatError('not-owner');
+    }
+ 
+    const memberRef = doc(db, 'flats', flatId, 'members', memberId);
+    const memberSnap = await tx.get(memberRef);
+    if (!memberSnap.exists()) {
+      return; // already gone
+    }
+ 
+    tx.delete(memberRef);
+    tx.set(doc(db, 'users', memberId), {flatId: null}, {merge: true});
+    if (codeSnap.exists()) {
+      const count = (codeSnap.data()?.memberCount ?? 1) as number;
+      tx.update(codeRef, {memberCount: Math.max(0, count - 1)});
+    }
+  });
+}
+ 
+/**
+ * Leaves the caller's flat. An owner can only leave when they are the last
+ * member, in which case the flat and its invite code are deleted.
+ */
+export async function leaveFlat() {
+  const user = currentUser();
+ 
+  return runTransaction(db, async tx => {
+    const {userRef, flatId, flatRef, flat, codeRef, codeSnap} =
+      await readOwnFlat(tx, user.uid);
+    const count = (codeSnap.data()?.memberCount ?? 1) as number;
+    const isOwner = flat.ownerId === user.uid;
+ 
+    if (isOwner && count > 1) {
+      throw flatError('owner-cannot-leave');
+    }
+ 
+    tx.delete(doc(db, 'flats', flatId, 'members', user.uid));
+    tx.set(userRef, {flatId: null}, {merge: true});
+ 
+    if (isOwner) {
+      tx.delete(flatRef);
+      if (codeSnap.exists()) {
+        tx.delete(codeRef);
+      }
+    } else if (codeSnap.exists()) {
+      tx.update(codeRef, {memberCount: Math.max(0, count - 1)});
+    }
+  });
+}
+ 

@@ -11,6 +11,7 @@ import {
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
 import DashBoard from '../screens/Home/DashBoard';
+import FlatScreen from '../screens/Flat/Flat';
 import {useColors} from '../theme';
 
 /* ---------- Types ---------- */
@@ -185,7 +186,7 @@ export function MainTabs() {
       />
       <Tab.Screen
         name="Flat"
-        component={Flat}
+        component={FlatScreen}
         options={{tabBarIcon: tabIcon('people')}}
       />
     </Tab.Navigator>
