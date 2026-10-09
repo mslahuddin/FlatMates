@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {signIn, authErrorMessage} from '../../services/auth';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -28,6 +29,7 @@ const SignIn = () => {
   const colors = useColors();
   const navigation = useNavigation<any>();
   const passwordRef = useRef<TextFieldRef>(null);
+  const [loading, setLoading] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,16 +49,17 @@ const SignIn = () => {
     return Object.keys(next).length === 0;
   };
 
-  const onSignIn = () => {
-    setFormError(null);
-    if (!validate()) {
-      return;
-    }
-    // TODO: supabase.auth.signInWithPassword({email: email.trim(), password}).
-    // On a wrong email or password, show the message below:
-    // setFormError("That email and password don't match. Try again or reset your password.");
-    // On success, the root navigator routes to the dashboard (or create or join).
-  };
+const onSignIn = async () => {
+  if (!validate()) return;
+  try {
+    setLoading(true);
+    await signIn(email, password);
+  } catch (e) {
+    setFormError(authErrorMessage(e));  // marks both fields invalid, orange message
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <SafeAreaView style={[styles.screen, {backgroundColor: colors.background}]}>

@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {signUp, authErrorMessage} from '../../services/auth';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -28,6 +29,7 @@ const SignUp = () => {
   const colors = useColors();
   const navigation = useNavigation<any>();
   const passwordRef = useRef<TextFieldRef>(null);
+  const [loading, setLoading] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,13 +47,19 @@ const SignUp = () => {
     return Object.keys(next).length === 0;
   };
 
-  const onContinue = () => {
-    if (!validate()) {
-      return;
-    }
-    // TODO: create the account with Supabase (supabase.auth.signUp), then
-    // navigate to the "Your profile" screen.
-  };
+const onContinue = async () => {
+  if (!validate()) return;           // your existing email/password checks
+  try {
+    setLoading(true);
+    await signUp(email, password);
+  } catch (e) {
+    const msg = authErrorMessage(e);
+    if (msg.toLowerCase().includes('email')) setEmailError(msg);
+    else setFormError(msg);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <SafeAreaView style={[styles.screen, {backgroundColor: colors.background}]}>
@@ -117,7 +125,8 @@ const SignUp = () => {
 
         {/* Bottom section: stays pinned above the keyboard. */}
         <View style={styles.footer}>
-          <Button label="Continue" onPress={onContinue} />
+          {/* //<Button label="Continue" onPress={onContinue} loading={loading} /> */}
+          <Button label="Continue" onPress={onContinue}  />
           <Pressable
             onPress={() => navigation.replace('SignIn')}
             accessibilityRole="button"

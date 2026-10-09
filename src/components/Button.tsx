@@ -1,6 +1,6 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text} from 'react-native';
-import {radius, spacing, useColors} from '../theme';
+import { useColors} from '../theme';
 
 type Props = {
   label: string;
@@ -36,8 +36,8 @@ export function Button({label, onPress, variant = 'primary'}: Props) {
 const styles = StyleSheet.create({
   base: {
     minHeight: 52,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.xl,
+    borderRadius: 16,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
