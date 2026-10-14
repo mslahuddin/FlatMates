@@ -12,6 +12,7 @@ import {
 } from '@react-navigation/bottom-tabs';
 import DashBoard from '../screens/Home/DashBoard';
 import FlatScreen from '../screens/Flat/Flat';
+import MoneyScreen from '../screens/Money/Money';
 import {useColors} from '../theme';
 
 /* ---------- Types ---------- */
@@ -118,13 +119,7 @@ const Placeholder = ({
   );
 };
 
-const Money = () => (
-  <Placeholder
-    title="Money"
-    icon="paid"
-    message="Shared bills, balances and settling up will live here."
-  />
-);
+
 const Duties = () => (
   <Placeholder
     title="Duties"
@@ -171,7 +166,7 @@ export function MainTabs() {
       />
       <Tab.Screen
         name="Money"
-        component={Money}
+        component={MoneyScreen}
         options={{tabBarIcon: tabIcon('paid')}}
       />
       <Tab.Screen

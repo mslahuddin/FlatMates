@@ -21,10 +21,10 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import {useNavigation} from '@react-navigation/native';
 import {getAuth} from '@react-native-firebase/auth';
 import {signOut} from '../../services/auth';
-import type {Member} from '../../services/flats';
+import type {Member} from '../../services/flat';
 import {useFlat} from '../../hooks/useFlat';
 import {useColors} from '../../theme';
-
+import Money from '../../screens/Money/Money';
 /* ---------- Helpers ---------- */
 
 const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
