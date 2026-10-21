@@ -33,12 +33,15 @@ import {
   billErrorMessage,
   deleteBill,
   markBillPaid,
+  materialiseDueBills,
 } from './moneyModals';
 import type {Bill, Frequency} from './moneyModals';
+import {ReceiptThumb, ReceiptViewer} from './Receipts';
 import {useFlat} from '../../hooks/useFlat';
 import {useLedger} from '../../hooks/useLedger';
 import {computeBalances, formatPence} from '../../libs/money';
 import type {Expense, Settlement} from '../../libs/money';
+import {deleteExpense, expenseErrorMessage} from '../../services/expense';
 import type {Member} from '../../services/flat';
 import {useColors} from '../../theme';
 
@@ -53,6 +56,7 @@ const TABS: {value: Tab; label: string}[] = [
 const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
 const OWE_COLOR = '#EBA24F';
 const OWED_COLOR = '#7BC98F';
+const DELETE_COLOR = '#E5675B';
 const CARD_BORDER = 'rgba(255,255,255,0.12)';
 const BILL_BG = '#3F2D1A';
 
@@ -82,6 +86,41 @@ const AddButton = ({
         pressed && styles.pressed,
       ]}>
       <Icon name="add" size={wp(8)} color={colors.black} />
+    </Pressable>
+  );
+};
+
+/** Red when you can delete the item, grey and disabled when you can't. */
+const DeleteButton = ({
+  enabled,
+  onPress,
+  label,
+}: {
+  enabled: boolean;
+  onPress: () => void;
+  label: string;
+}) => {
+  const colors = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!enabled}
+      hitSlop={wp(1.5)}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{disabled: !enabled}}
+      style={({pressed}) => [
+        styles.deleteButton,
+        enabled
+          ? {backgroundColor: 'rgba(229,103,91,0.16)'}
+          : styles.deleteDisabled,
+        pressed && styles.pressed,
+      ]}>
+      <Icon
+        name="delete-outline"
+        size={wp(5.5)}
+        color={enabled ? DELETE_COLOR : colors.textMuted}
+      />
     </Pressable>
   );
 };
@@ -207,6 +246,10 @@ type FeedItem =
       amountPence: number;
       myShare: number;
       involved: boolean;
+      fromBill: boolean;
+      expenseId: string;
+      createdBy?: string;
+      receiptId?: string | null;
     }
   | {
       kind: 'payment';
@@ -276,6 +319,9 @@ const FeedRow = ({
   amountColor,
   note,
   divider,
+  thumb,
+  canDelete,
+  onDelete,
 }: {
   title: string;
   sub: string;
@@ -283,42 +329,87 @@ const FeedRow = ({
   amountColor?: string;
   note: string;
   divider: boolean;
+  /** Picture shown on the left (receipt or default icon). */
+  thumb?: React.ReactNode;
+  /** True when you can delete it (you created it). Otherwise the button is grey. */
+  canDelete: boolean;
+  onDelete: () => void;
 }) => {
   const colors = useColors();
   return (
-    <View
-      accessible
-      accessibilityLabel={`${title}. ${sub}. ${amount}, ${note}`}
-      style={[x.row, divider && x.rowDivider]}>
-      <View style={x.rowLeft}>
-        <Text
-          style={[x.rowTitle, {color: colors.white}]}
-          numberOfLines={1}>
-          {title}
-        </Text>
-        <Text style={[x.rowSub, {color: colors.textMuted}]} numberOfLines={1}>
-          {sub}
-        </Text>
+    <View style={[x.row, divider && x.rowDivider]}>
+      {thumb}
+      <View
+        accessible
+        accessibilityLabel={`${title}. ${sub}. ${amount}, ${note}`}
+        style={x.rowBody}>
+        <View style={x.rowLeft}>
+          <Text
+            style={[x.rowTitle, {color: colors.white}]}
+            numberOfLines={1}>
+            {title}
+          </Text>
+          <Text style={[x.rowSub, {color: colors.textMuted}]} numberOfLines={1}>
+            {sub}
+          </Text>
+        </View>
+        <View style={x.rowRight}>
+          <Text style={[x.rowAmount, {color: amountColor ?? colors.white}]}>
+            {amount}
+          </Text>
+          <Text style={[x.rowSub, {color: colors.textMuted}]}>{note}</Text>
+        </View>
       </View>
-      <View style={x.rowRight}>
-        <Text style={[x.rowAmount, {color: amountColor ?? colors.white}]}>
-          {amount}
-        </Text>
-        <Text style={[x.rowSub, {color: colors.textMuted}]}>{note}</Text>
-      </View>
+      <DeleteButton
+        enabled={canDelete}
+        onPress={onDelete}
+        label={`Delete ${title}`}
+      />
     </View>
   );
 };
 
 type ExpensesTabProps = {
+  flatId: string;
   me: string;
   members: Member[];
   expenses: Expense[];
   settlements: Settlement[];
 };
 
-const ExpensesTab = ({me, members, expenses, settlements}: ExpensesTabProps) => {
+const ExpensesTab = ({
+  flatId,
+  me,
+  members,
+  expenses,
+  settlements,
+}: ExpensesTabProps) => {
   const [filter, setFilter] = useState<Filter>('all');
+  const [viewing, setViewing] = useState<string | null>(null);
+
+  /** Asks first, then marks the expense deleted. Balances recalculate. */
+  const confirmDelete = (item: Extract<FeedItem, {kind: 'expense'}>) => {
+    Alert.alert(
+      'Delete this expense?',
+      `${item.title} · ${formatPence(
+        item.amountPence,
+      )}\n\nIt is removed for everyone and balances update.`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteExpense(flatId, item.expenseId);
+            } catch (e) {
+              Alert.alert("Couldn't delete the expense", expenseErrorMessage(e));
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const nameOf = (uid: string) =>
     uid === me
@@ -340,6 +431,10 @@ const ExpensesTab = ({me, members, expenses, settlements}: ExpensesTabProps) => 
         amountPence: e.amountPence,
         myShare,
         involved: e.paidBy === me || e.shares?.[me] !== undefined,
+        fromBill: !!(e as {billId?: string}).billId,
+        expenseId: e.id,
+        createdBy: (e as {createdBy?: string}).createdBy,
+        receiptId: (e as {receiptId?: string | null}).receiptId ?? null,
       });
     }
     for (const s of settlements) {
@@ -398,6 +493,16 @@ const ExpensesTab = ({me, members, expenses, settlements}: ExpensesTabProps) => 
           amountColor={OWED_COLOR}
           note="settled"
           divider={divider}
+          thumb={
+            <ReceiptThumb
+              flatId={flatId}
+              receiptId={null}
+              size={wp(13)}
+              fallbackIcon="swap-horiz"
+            />
+          }
+          canDelete={false}
+          onDelete={() => {}}
         />
       );
     }
@@ -413,16 +518,37 @@ const ExpensesTab = ({me, members, expenses, settlements}: ExpensesTabProps) => 
       <FeedRow
         key={item.id}
         title={item.title}
-        sub={`${nameOf(item.paidBy)} paid · ${shortDate(item.date)}`}
+        sub={`${nameOf(item.paidBy)} paid · ${shortDate(item.date)}${
+          item.fromBill ? ' · bill' : ''
+        }`}
         amount={formatPence(item.amountPence)}
         note={note}
         divider={divider}
+        thumb={
+          <ReceiptThumb
+            flatId={flatId}
+            receiptId={item.receiptId}
+            size={wp(13)}
+            onPress={
+              item.receiptId
+                ? () => setViewing(item.receiptId ?? null)
+                : undefined
+            }
+          />
+        }
+        canDelete={item.createdBy === me}
+        onDelete={() => confirmDelete(item)}
       />
     );
   };
 
   return (
     <>
+      <ReceiptViewer
+        flatId={flatId}
+        receiptId={viewing}
+        onClose={() => setViewing(null)}
+      />
       <View style={x.chips}>
         {FILTERS.map(f => (
           <FilterChip
@@ -466,10 +592,16 @@ const x = StyleSheet.create({
 
   row: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: wp(3),
+    paddingVertical: hp(1.8),
+  },
+  rowBody: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: wp(3),
-    paddingVertical: hp(1.8),
   },
   rowDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -510,7 +642,9 @@ const x = StyleSheet.create({
   },
   bannerSub: {fontSize: 17},
 
+  billWrap: {flexDirection: 'row', alignItems: 'center', gap: wp(3)},
   billRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -561,6 +695,8 @@ function useBills(flatId: string | undefined) {
               paidBy: data.paidBy,
               participantIds: data.participantIds ?? [],
               shares: data.shares ?? {},
+              createdBy: data.createdBy ?? '',
+              receiptId: data.receiptId ?? null,
             } as Bill;
           })
           .filter((b): b is Bill => b !== null)
@@ -608,6 +744,7 @@ const dueDate = (d: Date) =>
   });
 
 type BillsTabProps = {
+  flatId: string;
   me: string;
   members: Member[];
   bills: Bill[];
@@ -615,9 +752,12 @@ type BillsTabProps = {
   error: boolean;
   onAdd: () => void;
   onOpen: (bill: Bill) => void;
+  /** Called when the person who added a bill taps its delete button. */
+  onDelete: (bill: Bill) => void;
 };
 
 const BillsTab = ({
+  flatId,
   me,
   members,
   bills,
@@ -625,8 +765,10 @@ const BillsTab = ({
   error,
   onAdd,
   onOpen,
+  onDelete,
 }: BillsTabProps) => {
   const colors = useColors();
+  const [viewing, setViewing] = useState<string | null>(null);
 
   const nameOf = (uid: string) =>
     uid === me
@@ -672,45 +814,65 @@ const BillsTab = ({
     const payer =
       bill.paidBy === me ? 'You pay' : `${nameOf(bill.paidBy)} pays`;
     return (
-      <Pressable
+      <View
         key={bill.id}
-        onPress={() => onOpen(bill)}
-        accessibilityRole="button"
-        accessibilityLabel={`${bill.name}, ${formatPence(
-          bill.amountPence,
-        )}, ${FREQUENCY_LABEL[bill.frequency]}, ${payer}, due ${dueDate(
-          bill.nextDue,
-        )}${late ? ', overdue' : ''}. Options`}
-        style={({pressed}) => [
-          x.billRow,
-          i < list.length - 1 && x.billDivider,
-          pressed && styles.pressed,
-        ]}>
-        <View style={x.billLeft}>
-          <Text style={[x.billTitle, {color: colors.white}]} numberOfLines={1}>
-            {bill.name}
-          </Text>
-          <Text
-            style={[x.billSub, {color: colors.textMuted}]}
-            numberOfLines={1}>
-            {FREQUENCY_LABEL[bill.frequency]} · {payer}
-          </Text>
-        </View>
-        <View style={x.billRight}>
-          <Text style={[x.billTitle, {color: colors.white}]}>
-            {formatPence(bill.amountPence)}
-          </Text>
-          <Text
-            style={[x.billSub, {color: late ? OWE_COLOR : colors.textMuted}]}>
-            {dueDate(bill.nextDue)}
-          </Text>
-        </View>
-      </Pressable>
+        style={[x.billWrap, i < list.length - 1 && x.billDivider]}>
+        <ReceiptThumb
+          flatId={flatId}
+          receiptId={bill.receiptId}
+          size={wp(13)}
+          fallbackIcon="receipt"
+          onPress={
+            bill.receiptId ? () => setViewing(bill.receiptId) : undefined
+          }
+        />
+        <Pressable
+          onPress={() => onOpen(bill)}
+          accessibilityRole="button"
+          accessibilityLabel={`${bill.name}, ${formatPence(
+            bill.amountPence,
+          )}, ${FREQUENCY_LABEL[bill.frequency]}, ${payer}, due ${dueDate(
+            bill.nextDue,
+          )}${late ? ', overdue' : ''}. Options`}
+          style={({pressed}) => [x.billRow, pressed && styles.pressed]}>
+          <View style={x.billLeft}>
+            <Text
+              style={[x.billTitle, {color: colors.white}]}
+              numberOfLines={1}>
+              {bill.name}
+            </Text>
+            <Text
+              style={[x.billSub, {color: colors.textMuted}]}
+              numberOfLines={1}>
+              {FREQUENCY_LABEL[bill.frequency]} · {payer}
+            </Text>
+          </View>
+          <View style={x.billRight}>
+            <Text style={[x.billTitle, {color: colors.white}]}>
+              {formatPence(bill.amountPence)}
+            </Text>
+            <Text
+              style={[x.billSub, {color: late ? OWE_COLOR : colors.textMuted}]}>
+              {dueDate(bill.nextDue)}
+            </Text>
+          </View>
+        </Pressable>
+        <DeleteButton
+          enabled={bill.createdBy === me}
+          onPress={() => onDelete(bill)}
+          label={`Delete ${bill.name}`}
+        />
+      </View>
     );
   };
 
   return (
     <>
+      <ReceiptViewer
+        flatId={flatId}
+        receiptId={viewing}
+        onClose={() => setViewing(null)}
+      />
       {nextDays <= 7 ? (
         <Pressable
           onPress={() => onOpen(next)}
@@ -783,12 +945,46 @@ const Money = () => {
     bills,
   } = useBills(flat?.id);
 
+  // Bills that have reached their due date become expenses, so balances include them.
+  useEffect(() => {
+    if (flat && bills.length > 0) {
+      materialiseDueBills(flat.id, bills);
+    }
+  }, [flat, bills]);
+
   const [adding, setAdding] = useState(false);
   const [addingBill, setAddingBill] = useState(false);
   const addExpense = () => setAdding(true);
   const addBill = () => setAddingBill(true);
 
-  /** Tap a bill: mark it paid (adds an expense, moves the due date) or delete it. */
+  /** Asks first, then marks the bill deleted. Expenses it already made stay. */
+  const confirmDeleteBill = (bill: Bill) => {
+    if (!flat) {
+      return;
+    }
+    Alert.alert(
+      'Delete this bill?',
+      `${bill.name} · ${formatPence(
+        bill.amountPence,
+      )}\n\nIt stops repeating. Expenses it already added stay in the list.`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteBill(flat.id, bill.id);
+            } catch (e) {
+              Alert.alert("Couldn't delete the bill", billErrorMessage(e));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  /** Tap a bill: add it to expenses now, or (if you added it) delete it. */
   const openBill = (bill: Bill) => {
     if (!flat) {
       return;
@@ -802,33 +998,29 @@ const Money = () => {
       bill.name,
       `${formatPence(bill.amountPence)} · due ${dueDate(
         bill.nextDue,
-      )}\n\nMark as paid adds a ${formatPence(
-        bill.amountPence,
-      )} expense paid by ${payer}, then moves the next due date to ${dueDate(
+      )}\n\nOn the due date this is added to Expenses and split in Balances automatically (paid by ${payer}).\n\nAdd to expenses now counts it today and moves the next due date to ${dueDate(
         following,
       )}.`,
       [
         {
-          text: 'Mark as paid',
+          text: 'Add to expenses now',
           onPress: async () => {
             try {
               await markBillPaid(flat.id, bill);
             } catch (e) {
-              Alert.alert("Couldn't mark as paid", billErrorMessage(e));
+              Alert.alert("Couldn't add the bill", billErrorMessage(e));
             }
           },
         },
-        {
-          text: 'Delete bill',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteBill(flat.id, bill.id);
-            } catch (e) {
-              Alert.alert("Couldn't delete the bill", billErrorMessage(e));
-            }
-          },
-        },
+        ...(bill.createdBy === me
+          ? [
+              {
+                text: 'Delete bill',
+                style: 'destructive' as const,
+                onPress: () => confirmDeleteBill(bill),
+              },
+            ]
+          : []),
         {text: 'Cancel', style: 'cancel'},
       ],
     );
@@ -906,6 +1098,7 @@ const Money = () => {
     if (tab === 'expenses') {
       return hasHistory ? (
         <ExpensesTab
+          flatId={flat?.id ?? ''}
           me={me}
           members={members}
           expenses={expenses}
@@ -923,6 +1116,7 @@ const Money = () => {
     }
     return (
       <BillsTab
+        flatId={flat?.id ?? ''}
         me={me}
         members={members}
         bills={bills}
@@ -930,6 +1124,7 @@ const Money = () => {
         error={billsError}
         onAdd={addBill}
         onOpen={openBill}
+        onDelete={confirmDeleteBill}
       />
     );
   };
@@ -1018,6 +1213,14 @@ const styles = StyleSheet.create({
   screen: {flex: 1},
   pressed: {opacity: 0.7},
   loader: {marginTop: hp(8)},
+  deleteButton: {
+    width: wp(10),
+    height: wp(10),
+    borderRadius: wp(3),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteDisabled: {backgroundColor: 'rgba(255,255,255,0.05)', opacity: 0.45},
 
   header: {
     flexDirection: 'row',

@@ -1,5 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {
+  ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -28,8 +30,15 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {MemberAvatar} from '../../components/memberAvatar';
 import {SegmentedControl} from '../../components/segmentedControl';
-import {parseAmountToPence, splitEqual} from '../../libs/money';
-import {createExpense, expenseErrorMessage} from '../../services/expense';
+import {formatPence, parseAmountToPence, splitEqual} from '../../libs/money';
+import {
+  addReceiptToBatch,
+  confirmOrQueue,
+  createExpense,
+  expenseErrorMessage,
+} from '../../services/expense';
+import type {ReceiptDraft} from '../../services/expense';
+import {pickReceipt, receiptErrorMessage} from './Receipts';
 import type {Member} from '../../services/flat';
 import {useColors} from '../../theme';
 
@@ -71,6 +80,10 @@ export type Bill = {
   participantIds: string[];
   /** uid -> pence. Always adds up to amountPence. */
   shares: Record<string, number>;
+  /** Who added the bill. Only they can delete it. */
+  createdBy: string;
+  /** Receipt photo kept with the bill and copied to each expense it makes. */
+  receiptId: string | null;
 };
 
 const db = getFirestore();
@@ -94,21 +107,6 @@ export function addFrequency(d: Date, frequency: Frequency): Date {
   return new Date(year, month, Math.min(d.getDate(), lastDay), 12);
 }
 
-/**
- * Waits up to 6 seconds for the server. If it has not confirmed (offline),
- * resolves queued: true. Firestore keeps the write and sends it later.
- */
-async function confirmOrQueue(write: Promise<unknown>) {
-  const outcome = await Promise.race([
-    write.then(() => 'saved' as const),
-    new Promise<'queued'>(resolve => setTimeout(() => resolve('queued'), 6000)),
-  ]);
-  if (outcome === 'queued') {
-    write.catch(() => {});
-  }
-  return {queued: outcome === 'queued'};
-}
-
 export function billErrorMessage(e: unknown): string {
   if ((e as {code?: string})?.code === 'invalid-input') {
     return 'Check the name and amount, then try again.';
@@ -116,7 +114,7 @@ export function billErrorMessage(e: unknown): string {
   return expenseErrorMessage(e);
 }
 
-/** Saves a recurring bill, split equally between participantIds. */
+/** Saves a recurring bill, split equally between participantIds (the payer need not be one of them). */
 export async function createBill(input: {
   flatId: string;
   name: string;
@@ -125,19 +123,21 @@ export async function createBill(input: {
   nextDue: Date;
   paidBy: string;
   participantIds: string[];
+  receipt?: ReceiptDraft | null;
 }) {
   const user = getAuth().currentUser;
   if (!user) {
     throw fail('not-signed-in');
   }
   const name = input.name.trim();
-  const {amountPence, frequency, nextDue, paidBy, participantIds} = input;
+  const {amountPence, frequency, nextDue, paidBy} = input;
+  const participantIds = Array.from(new Set(input.participantIds));
   if (
     !name ||
     !Number.isInteger(amountPence) ||
     amountPence <= 0 ||
     participantIds.length === 0 ||
-    !participantIds.includes(paidBy)
+    !paidBy
   ) {
     throw fail('invalid-input');
   }
@@ -148,42 +148,53 @@ export async function createBill(input: {
     throw fail('invalid-input');
   }
 
-  return confirmOrQueue(
-    setDoc(ref, {
-      name,
-      amountPence,
-      currency: 'GBP',
-      frequency,
-      nextDue: Timestamp.fromDate(atNoon(nextDue)),
-      paidBy,
-      participantIds,
-      shares,
-      splitMethod: 'equal',
-      createdBy: user.uid,
-      createdAt: serverTimestamp(),
-      deletedAt: null,
-    }),
-  );
+  const data = {
+    name,
+    amountPence,
+    currency: 'GBP',
+    frequency,
+    nextDue: Timestamp.fromDate(atNoon(nextDue)),
+    paidBy,
+    participantIds,
+    shares,
+    splitMethod: 'equal',
+    createdBy: user.uid,
+    createdAt: serverTimestamp(),
+    deletedAt: null,
+  };
+
+  let write: Promise<unknown>;
+  if (input.receipt) {
+    const batch = writeBatch(db);
+    const receiptId = addReceiptToBatch(
+      batch,
+      input.flatId,
+      input.receipt,
+      user.uid,
+    );
+    batch.set(ref, {...data, receiptId});
+    write = batch.commit();
+  } else {
+    write = setDoc(ref, {...data, receiptId: null});
+  }
+  return confirmOrQueue(write);
 }
 
-/**
- * "Mark as paid": adds an expense for this bill and moves the bill to its next
- * due date, in one atomic write. The expense id is built from the bill and the
- * due date, so tapping twice for the same due date cannot add it twice.
- */
-export async function markBillPaid(flatId: string, bill: Bill) {
-  const user = getAuth().currentUser;
-  if (!user) {
-    throw fail('not-signed-in');
-  }
-  const due = atNoon(bill.nextDue);
-  const key = `${due.getFullYear()}${String(due.getMonth() + 1).padStart(
-    2,
-    '0',
-  )}${String(due.getDate()).padStart(2, '0')}`;
+const pad2 = (n: number) => String(n).padStart(2, '0');
 
-  const batch = writeBatch(db);
-  batch.set(doc(db, 'flats', flatId, 'expenses', `${bill.id}_${key}`), {
+/** 20261015 -- part of the expense id, so one due date can only become one expense. */
+const dueKey = (d: Date) =>
+  `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+
+/** Queues the expense for one due date of a bill. Shares are the bill's own shares. */
+function addBillExpense(
+  batch: ReturnType<typeof writeBatch>,
+  flatId: string,
+  bill: Bill,
+  due: Date,
+  uid: string,
+) {
+  batch.set(doc(db, 'flats', flatId, 'expenses', `${bill.id}_${dueKey(due)}`), {
     description: bill.name,
     amountPence: bill.amountPence,
     currency: 'GBP',
@@ -193,10 +204,27 @@ export async function markBillPaid(flatId: string, bill: Bill) {
     splitMethod: 'equal',
     date: Timestamp.fromDate(due),
     billId: bill.id,
-    createdBy: user.uid,
+    receiptId: bill.receiptId ?? null,
+    createdBy: uid,
     createdAt: serverTimestamp(),
     deletedAt: null,
   });
+}
+
+/**
+ * "Add to expenses now": turns the bill's next due date into an expense (so it
+ * is split in balances) and moves the bill to the following due date, in one
+ * atomic write. The expense id is built from the bill and the due date, so the
+ * same due date can never be added twice.
+ */
+export async function markBillPaid(flatId: string, bill: Bill) {
+  const user = getAuth().currentUser;
+  if (!user) {
+    throw fail('not-signed-in');
+  }
+  const due = atNoon(bill.nextDue);
+  const batch = writeBatch(db);
+  addBillExpense(batch, flatId, bill, due, user.uid);
   batch.update(doc(db, 'flats', flatId, 'bills', bill.id), {
     nextDue: Timestamp.fromDate(addFrequency(due, bill.frequency)),
     lastPaidAt: serverTimestamp(),
@@ -204,11 +232,70 @@ export async function markBillPaid(flatId: string, bill: Bill) {
   return confirmOrQueue(batch.commit());
 }
 
+/** Bills being written right now, so the same bill is not written twice. */
+const inFlight = new Set<string>();
+
+/**
+ * Call this when the bills load. Every bill whose due date is today or earlier
+ * becomes an expense (split between its people, so balances update) and moves to
+ * its next due date. Missed cycles are caught up, at most 24 at a time. Safe to
+ * call many times, from any phone: the expense ids stop duplicates.
+ */
+export async function materialiseDueBills(flatId: string, bills: Bill[]) {
+  const user = getAuth().currentUser;
+  if (!user) {
+    return;
+  }
+  const now = new Date();
+  const endOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    23,
+    59,
+    59,
+    999,
+  );
+
+  for (const bill of bills) {
+    let due = atNoon(bill.nextDue);
+    if (due.getTime() > endOfToday.getTime()) {
+      continue;
+    }
+    const key = `${bill.id}_${bill.nextDue.getTime()}`;
+    if (inFlight.has(key)) {
+      continue;
+    }
+
+    const batch = writeBatch(db);
+    let cycles = 0;
+    while (due.getTime() <= endOfToday.getTime() && cycles < 24) {
+      addBillExpense(batch, flatId, bill, due, user.uid);
+      due = addFrequency(due, bill.frequency);
+      cycles++;
+    }
+    batch.update(doc(db, 'flats', flatId, 'bills', bill.id), {
+      nextDue: Timestamp.fromDate(due),
+      lastPaidAt: serverTimestamp(),
+    });
+
+    inFlight.add(key);
+    batch
+      .commit()
+      .catch(e => {
+        // Try again the next time the bills change.
+        inFlight.delete(key);
+        console.warn('Could not add a due bill to expenses', e);
+      });
+  }
+}
+
 /** Stops a bill from showing. The history it created stays. */
 export async function deleteBill(flatId: string, billId: string) {
   const batch = writeBatch(db);
   batch.update(doc(db, 'flats', flatId, 'bills', billId), {
-    deletedAt: serverTimestamp(),
+    // A real timestamp (not a server one), so it also hides the bill at once offline.
+    deletedAt: Timestamp.now(),
   });
   return confirmOrQueue(batch.commit());
 }
@@ -328,6 +415,222 @@ const PaidByField = ({
           );
         })}
       </View>
+    </FieldCard>
+  );
+};
+
+/** Optional receipt photo: take one with the camera or pick one from the gallery. */
+const ReceiptField = ({
+  value,
+  onChange,
+}: {
+  value: ReceiptDraft | null;
+  onChange: (receipt: ReceiptDraft | null) => void;
+}) => {
+  const colors = useColors();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+
+  const pick = async (source: 'camera' | 'library') => {
+    if (busy) {
+      return;
+    }
+    setError(undefined);
+    setBusy(true);
+    try {
+      const picked = await pickReceipt(source);
+      if (picked) {
+        onChange(picked);
+      }
+    } catch (e) {
+      setError(receiptErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const Option = ({
+    icon,
+    label,
+    source,
+  }: {
+    icon: string;
+    label: string;
+    source: 'camera' | 'library';
+  }) => (
+    <Pressable
+      onPress={() => pick(source)}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({pressed}) => [s.receiptButton, pressed && s.pressed]}>
+      <Icon name={icon} size={wp(5.5)} color={colors.lightGreen} />
+      <Text style={[s.receiptButtonText, {color: colors.white}]}>{label}</Text>
+    </Pressable>
+  );
+
+  return (
+    <FieldCard label="RECEIPT · OPTIONAL" error={error}>
+      {value ? (
+        <View style={s.receiptRow}>
+          <Image
+            source={{uri: `data:${value.mime};base64,${value.base64}`}}
+            style={s.receiptPreview}
+            resizeMode="cover"
+            accessibilityLabel="Receipt photo"
+          />
+          <View style={s.flex}>
+            <Text style={[s.input, {color: colors.white}]}>Receipt added</Text>
+            <Pressable
+              onPress={() => pick('camera')}
+              hitSlop={wp(2)}
+              accessibilityRole="button">
+              <Text style={[s.receiptLink, {color: colors.lightGreen}]}>
+                Retake
+              </Text>
+            </Pressable>
+          </View>
+          <Pressable
+            onPress={() => onChange(null)}
+            hitSlop={wp(3)}
+            accessibilityRole="button"
+            accessibilityLabel="Remove receipt">
+            <Icon name="close" size={wp(6)} color={colors.textMuted} />
+          </Pressable>
+        </View>
+      ) : busy ? (
+        <ActivityIndicator color={colors.lightGreen} style={s.receiptBusy} />
+      ) : (
+        <View style={s.receiptOptions}>
+          <Option icon="photo-camera" label="Camera" source="camera" />
+          <Option icon="photo-library" label="Gallery" source="library" />
+        </View>
+      )}
+    </FieldCard>
+  );
+};
+
+const SplitChip = ({
+  on,
+  label,
+  onPress,
+  children,
+  a11y,
+}: {
+  on: boolean;
+  label: string;
+  onPress: () => void;
+  children?: React.ReactNode;
+  a11y: string;
+}) => {
+  const colors = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="checkbox"
+      accessibilityState={{checked: on}}
+      accessibilityLabel={a11y}
+      style={[s.chip, on && {borderColor: colors.lightGreen}]}>
+      {on ? (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            {backgroundColor: colors.lightGreen, opacity: 0.16},
+          ]}
+        />
+      ) : null}
+      {children}
+      <Text
+        style={[
+          s.chipText,
+          {color: on ? colors.white : colors.surfaceAlt},
+          on && s.chipTextSelected,
+        ]}>
+        {label}
+      </Text>
+      {on ? (
+        <Icon name="check" size={wp(4.5)} color={colors.lightGreen} />
+      ) : null}
+    </Pressable>
+  );
+};
+
+/**
+ * Who the cost is split between: a sideways list of flatmates. Tap to include or
+ * leave out. "Everyone" selects the whole flat. The payer can be left out (for
+ * example when you buy something just for two others).
+ */
+const SplitField = ({
+  members,
+  me,
+  paidBy,
+  selected,
+  onChange,
+  amountPence,
+  error,
+}: {
+  members: Member[];
+  me: string;
+  paidBy: string;
+  selected: string[];
+  onChange: (ids: string[]) => void;
+  amountPence: number | null;
+  error?: string;
+}) => {
+  const colors = useColors();
+  const allSelected =
+    members.length > 0 && members.every(m => selected.includes(m.id));
+
+  const toggle = (id: string) =>
+    onChange(
+      selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id],
+    );
+
+  // What each person pays. A leftover penny means some pay 1p more.
+  const count = selected.length;
+  let each = '';
+  if (count > 0 && amountPence && amountPence > 0) {
+    const base = Math.floor(amountPence / count);
+    each =
+      amountPence % count === 0
+        ? ` · ${formatPence(base)} each`
+        : ` · about ${formatPence(Math.round(amountPence / count))} each`;
+  }
+  const payerLeftOut = count > 0 && !selected.includes(paidBy);
+
+  return (
+    <FieldCard label="SPLIT BETWEEN" error={error}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={s.splitRow}>
+        <SplitChip
+          on={allSelected}
+          label="Everyone"
+          a11y="Everyone in the flat"
+          onPress={() => onChange(members.map(m => m.id))}>
+          <View style={[s.everyoneIcon, {borderColor: CARD_BORDER}]}>
+            <Icon name="groups" size={wp(5)} color={colors.lightGreen} />
+          </View>
+        </SplitChip>
+        {members.map((member, index) => (
+          <SplitChip
+            key={member.id}
+            on={selected.includes(member.id)}
+            label={`${member.name}${member.id === me ? ' (you)' : ''}`}
+            a11y={`${member.name}${member.id === me ? ', you' : ''}`}
+            onPress={() => toggle(member.id)}>
+            <MemberAvatar name={member.name} index={index} size={wp(8)} />
+          </SplitChip>
+        ))}
+      </ScrollView>
+      <Text style={[s.splitHint, {color: colors.textMuted}]}>
+        {count === 0
+          ? 'Pick at least one person'
+          : `Equally between ${count} ${count === 1 ? 'person' : 'people'}${each}${
+              payerLeftOut ? ' · payer not included' : ''
+            }`}
+      </Text>
     </FieldCard>
   );
 };
@@ -493,6 +796,8 @@ export const AddExpenseModal = ({
   const [amountText, setAmountText] = useState('');
   const [description, setDescription] = useState('');
   const [paidBy, setPaidBy] = useState(me);
+  const [splitWith, setSplitWith] = useState<string[]>([]);
+  const [receipt, setReceipt] = useState<ReceiptDraft | null>(null);
   const [date, setDate] = useState(new Date());
   const [focus, setFocus] = useState<'amount' | 'description' | null>(null);
 
@@ -500,6 +805,7 @@ export const AddExpenseModal = ({
   const [descriptionError, setDescriptionError] = useState<
     string | undefined
   >();
+  const [splitError, setSplitError] = useState<string | undefined>();
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -509,12 +815,17 @@ export const AddExpenseModal = ({
       setAmountText('');
       setDescription('');
       setPaidBy(me);
+      setSplitWith(members.map(member => member.id));
+      setReceipt(null);
       setDate(new Date());
       setAmountError(undefined);
       setDescriptionError(undefined);
+      setSplitError(undefined);
       setFormError(null);
       setSaving(false);
     }
+    // Only reset when the modal opens, not when the members list refreshes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, me]);
 
   const onSubmit = async () => {
@@ -533,6 +844,14 @@ export const AddExpenseModal = ({
       setDescriptionError('Add a short description.');
       valid = false;
     }
+    // Only people who are still in the flat can be in the split.
+    const participantIds = splitWith.filter(id =>
+      members.some(member => member.id === id),
+    );
+    if (participantIds.length === 0) {
+      setSplitError('Pick at least one person to split with.');
+      valid = false;
+    }
     if (!valid || !amountPence) {
       return;
     }
@@ -544,8 +863,9 @@ export const AddExpenseModal = ({
         description,
         amountPence,
         paidBy,
-        participantIds: members.map(member => member.id),
+        participantIds,
         date,
+        receipt,
       });
       onClose();
     } catch (e) {
@@ -616,11 +936,27 @@ export const AddExpenseModal = ({
         />
       </FieldCard>
 
+      <ReceiptField value={receipt} onChange={setReceipt} />
+
       <PaidByField
         members={members}
         me={me}
         value={paidBy}
         onChange={setPaidBy}
+      />
+
+      <SplitField
+        members={members}
+        me={me}
+        paidBy={paidBy}
+        selected={splitWith}
+        onChange={ids => {
+          setSplitWith(ids);
+          setSplitError(undefined);
+          setFormError(null);
+        }}
+        amountPence={parseAmountToPence(amountText)}
+        error={splitError}
       />
 
       <DateField
@@ -629,11 +965,6 @@ export const AddExpenseModal = ({
         onChange={setDate}
         maximumDate={new Date()}
       />
-
-      <Text style={[s.hint, {color: colors.textMuted}]}>
-        Split equally between everyone in the flat for now. Choosing who to
-        split with comes next.
-      </Text>
     </Sheet>
   );
 };
@@ -656,10 +987,13 @@ export const AddBillModal = ({
   const [frequency, setFrequency] = useState<Frequency>('monthly');
   const [nextDue, setNextDue] = useState(new Date());
   const [paidBy, setPaidBy] = useState(me);
+  const [splitWith, setSplitWith] = useState<string[]>([]);
+  const [receipt, setReceipt] = useState<ReceiptDraft | null>(null);
   const [focus, setFocus] = useState<'name' | 'amount' | null>(null);
 
   const [nameError, setNameError] = useState<string | undefined>();
   const [amountError, setAmountError] = useState<string | undefined>();
+  const [splitError, setSplitError] = useState<string | undefined>();
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -670,11 +1004,16 @@ export const AddBillModal = ({
       setFrequency('monthly');
       setNextDue(new Date());
       setPaidBy(me);
+      setSplitWith(members.map(member => member.id));
+      setReceipt(null);
       setNameError(undefined);
       setAmountError(undefined);
+      setSplitError(undefined);
       setFormError(null);
       setSaving(false);
     }
+    // Only reset when the modal opens, not when the members list refreshes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, me]);
 
   const onSubmit = async () => {
@@ -693,6 +1032,13 @@ export const AddBillModal = ({
       setAmountError('Enter an amount greater than £0.00.');
       valid = false;
     }
+    const participantIds = splitWith.filter(id =>
+      members.some(member => member.id === id),
+    );
+    if (participantIds.length === 0) {
+      setSplitError('Pick at least one person to split with.');
+      valid = false;
+    }
     if (!valid || !amountPence) {
       return;
     }
@@ -706,7 +1052,8 @@ export const AddBillModal = ({
         frequency,
         nextDue,
         paidBy,
-        participantIds: members.map(member => member.id),
+        participantIds,
+        receipt,
       });
       onClose();
     } catch (e) {
@@ -777,6 +1124,8 @@ export const AddBillModal = ({
         </View>
       </FieldCard>
 
+      <ReceiptField value={receipt} onChange={setReceipt} />
+
       <SegmentedControl
         options={FREQUENCIES}
         value={frequency}
@@ -792,11 +1141,24 @@ export const AddBillModal = ({
         onChange={setPaidBy}
       />
 
-      <FieldCard label="SPLIT">
-        <Text style={[s.input, {color: colors.white}]}>
-          {`Equally between ${members.length}`}
-        </Text>
-      </FieldCard>
+      <SplitField
+        members={members}
+        me={me}
+        paidBy={paidBy}
+        selected={splitWith}
+        onChange={ids => {
+          setSplitWith(ids);
+          setSplitError(undefined);
+          setFormError(null);
+        }}
+        amountPence={parseAmountToPence(amountText)}
+        error={splitError}
+      />
+
+      <Text style={[s.hint, {color: colors.textMuted}]}>
+        On the due date this is added to Expenses and split between the people you
+        picked in Balances. A bill due today is added straight away.
+      </Text>
     </Sheet>
   );
 };
@@ -870,6 +1232,16 @@ const s = StyleSheet.create({
     paddingLeft: wp(1.5),
     paddingRight: wp(3.5),
   },
+  splitRow: {flexDirection: 'row', alignItems: 'center', gap: wp(2.5)},
+  splitHint: {fontSize: 15, lineHeight: 21, marginTop: hp(0.4)},
+  everyoneIcon: {
+    width: wp(8),
+    height: wp(8),
+    borderRadius: wp(4),
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   chipText: {fontSize: 17, fontWeight: '500'},
   chipTextSelected: {fontWeight: '700'},
 
@@ -882,6 +1254,30 @@ const s = StyleSheet.create({
   dateText: {fontSize: 20, fontWeight: '500'},
 
   hint: {fontSize: 15, lineHeight: 21},
+
+  receiptOptions: {flexDirection: 'row', gap: wp(3), paddingVertical: hp(0.4)},
+  receiptButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: wp(2),
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingVertical: hp(1.2),
+  },
+  receiptButtonText: {fontSize: 17, fontWeight: '600'},
+  receiptRow: {flexDirection: 'row', alignItems: 'center', gap: wp(3.5)},
+  receiptPreview: {
+    width: wp(15),
+    height: wp(15),
+    borderRadius: wp(3),
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  receiptLink: {fontSize: 16, fontWeight: '600', marginTop: 2},
+  receiptBusy: {paddingVertical: hp(1.2)},
 
   footer: {paddingHorizontal: wp(6), paddingBottom: hp(3), paddingTop: hp(1)},
   button: {
