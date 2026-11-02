@@ -335,7 +335,7 @@ const cleanAmount = (text: string) => {
   return `${whole.slice(0, 7)}.${rest.join('').slice(0, 2)}`;
 };
 
-const FieldCard = ({
+export const FieldCard = ({
   label,
   active,
   error,
@@ -509,7 +509,7 @@ const ReceiptField = ({
   );
 };
 
-const SplitChip = ({
+export const SplitChip = ({
   on,
   label,
   onPress,
@@ -636,16 +636,18 @@ const SplitField = ({
 };
 
 /** A date row that opens an inline calendar when tapped. */
-const DateField = ({
+export const DateField = ({
   label,
   date,
   onChange,
   maximumDate,
+  minimumDate,
 }: {
   label: string;
   date: Date;
   onChange: (d: Date) => void;
   maximumDate?: Date;
+  minimumDate?: Date;
 }) => {
   const colors = useColors();
   const [open, setOpen] = useState(false);
@@ -671,6 +673,7 @@ const DateField = ({
           mode="date"
           display={Platform.OS === 'ios' ? 'inline' : 'default'}
           maximumDate={maximumDate}
+          minimumDate={minimumDate}
           themeVariant="dark"
           accentColor={colors.lightGreen}
           onChange={(event, selected) => {
@@ -692,7 +695,7 @@ const DateField = ({
 };
 
 /** Page sheet with a Cancel link, a title, scrolling fields and a pinned button. */
-const Sheet = ({
+export const Sheet = ({
   visible,
   onClose,
   title,

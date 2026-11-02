@@ -13,6 +13,7 @@ import {
 import DashBoard from '../screens/Home/DashBoard';
 import FlatScreen from '../screens/Flat/Flat';
 import MoneyScreen from '../screens/Money/Money';
+import DutiesScreen from '../screens/Duties/Duties';
 import {useColors} from '../theme';
 
 /* ---------- Types ---------- */
@@ -171,7 +172,7 @@ export function MainTabs() {
       />
       <Tab.Screen
         name="Duties"
-        component={Duties}
+        component={DutiesScreen}
         options={{tabBarIcon: tabIcon('check-box')}}
       />
       <Tab.Screen
