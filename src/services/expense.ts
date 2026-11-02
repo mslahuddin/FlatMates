@@ -169,3 +169,46 @@ export async function deleteExpense(flatId: string, expenseId: string) {
     }),
   );
 }
+
+/**
+ * Records a payment between two flatmates, so balances go down by that amount.
+ * You can only record a payment you are part of (you paid, or you received it).
+ * The rules enforce this too. The payment is never edited or erased.
+ */
+export async function createSettlement(input: {
+  flatId: string;
+  fromUid: string;
+  toUid: string;
+  amountPence: number;
+}): Promise<{queued: boolean}> {
+  const user = getAuth().currentUser;
+  if (!user) {
+    throw expenseError('not-signed-in');
+  }
+  const {flatId, fromUid, toUid, amountPence} = input;
+  if (
+    !fromUid ||
+    !toUid ||
+    fromUid === toUid ||
+    (user.uid !== fromUid && user.uid !== toUid) ||
+    !Number.isInteger(amountPence) ||
+    amountPence <= 0
+  ) {
+    throw expenseError('invalid-input');
+  }
+
+  const ref = doc(collection(db, 'flats', flatId, 'settlements'));
+  return confirmOrQueue(
+    setDoc(ref, {
+      fromUid,
+      toUid,
+      amountPence,
+      currency: 'GBP',
+      // A real timestamp, so the payment shows in the right place straight away, even offline.
+      date: Timestamp.now(),
+      createdBy: user.uid,
+      createdAt: serverTimestamp(),
+      deletedAt: null,
+    }),
+  );
+}

@@ -41,7 +41,11 @@ import {useFlat} from '../../hooks/useFlat';
 import {useLedger} from '../../hooks/useLedger';
 import {computeBalances, formatPence} from '../../libs/money';
 import type {Expense, Settlement} from '../../libs/money';
-import {deleteExpense, expenseErrorMessage} from '../../services/expense';
+import {
+  createSettlement,
+  deleteExpense,
+  expenseErrorMessage,
+} from '../../services/expense';
 import type {Member} from '../../services/flat';
 import {useColors} from '../../theme';
 
@@ -174,8 +178,8 @@ type PersonRowProps = {
   index: number;
   pence: number;
   color: string;
-  /** "settle" shows a Settle chip. "open" shows a chevron. */
-  action: 'settle' | 'open';
+  /** "settle": you owe them (Settle chip). "received": they owe you (Received chip). */
+  action: 'settle' | 'received';
   onPress: () => void;
 };
 
@@ -197,7 +201,7 @@ const PersonRow = ({
       accessibilityLabel={
         action === 'settle'
           ? `You owe ${name} ${formatPence(pence)}. Settle up`
-          : `${name} owes you ${formatPence(pence)}. Open`
+          : `${name} owes you ${formatPence(pence)}. Mark as received`
       }
       style={({pressed}) => [styles.personRow, pressed && styles.pressed]}>
       <MemberAvatar name={name} index={index} size={wp(12)} />
@@ -207,21 +211,17 @@ const PersonRow = ({
         {name}
       </Text>
       <Text style={[styles.personAmount, {color}]}>{formatPence(pence)}</Text>
-      {action === 'settle' ? (
-        <View style={styles.settleChip}>
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              {backgroundColor: colors.lightGreen, opacity: 0.16},
-            ]}
-          />
-          <Text style={[styles.settleText, {color: colors.lightGreen}]}>
-            Settle
-          </Text>
-        </View>
-      ) : (
-        <Icon name="chevron-right" size={wp(6)} color={colors.textMuted} />
-      )}
+      <View style={styles.settleChip}>
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            {backgroundColor: colors.lightGreen, opacity: 0.16},
+          ]}
+        />
+        <Text style={[styles.settleText, {color: colors.lightGreen}]}>
+          {action === 'settle' ? 'Settle' : 'Received'}
+        </Text>
+      </View>
     </Pressable>
   );
 };
@@ -821,7 +821,7 @@ const BillsTab = ({
           flatId={flatId}
           receiptId={bill.receiptId}
           size={wp(13)}
-          fallbackIcon="receipt"
+          fallbackIcon="autorenew"
           onPress={
             bill.receiptId ? () => setViewing(bill.receiptId) : undefined
           }
@@ -998,12 +998,12 @@ const Money = () => {
       bill.name,
       `${formatPence(bill.amountPence)} · due ${dueDate(
         bill.nextDue,
-      )}\n\nOn the due date this is added to Expenses and split in Balances automatically (paid by ${payer}).\n\nAdd to expenses now counts it today and moves the next due date to ${dueDate(
+      )}\n\nOn the due date this is added to Expenses and split in Balances automatically (paid by ${payer}).\n\nPay now and moves the next due date to ${dueDate(
         following,
       )}.`,
       [
         {
-          text: 'Add to expenses now',
+          text: 'Pay bill',
           onPress: async () => {
             try {
               await markBillPaid(flat.id, bill);
@@ -1026,6 +1026,62 @@ const Money = () => {
     );
   };
   const hasHistory = expenses.length > 0 || settlements.length > 0;
+
+  /** Records the payment, then balances update for everyone. */
+  const [settling, setSettling] = useState(false);
+  const recordPayment = async (
+    fromUid: string,
+    toUid: string,
+    amountPence: number,
+  ) => {
+    if (!flat || settling) {
+      return;
+    }
+    try {
+      setSettling(true);
+      await createSettlement({flatId: flat.id, fromUid, toUid, amountPence});
+    } catch (e) {
+      Alert.alert("Couldn't record the payment", expenseErrorMessage(e));
+    } finally {
+      setSettling(false);
+    }
+  };
+
+  /** You owe them. Asks first, then records a payment from you to them. */
+  const settleUp = (uid: string, pence: number) => {
+    const name = memberOf(uid)?.name ?? 'them';
+    Alert.alert(
+      `Settle up with ${name}?`,
+      `This records that you paid ${name} ${formatPence(
+        pence,
+      )}. Only confirm once you've paid them. Balances update for everyone.`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: `Settle ${formatPence(pence)}`,
+          onPress: () => recordPayment(me, uid, pence),
+        },
+      ],
+    );
+  };
+
+  /** They owe you. Asks first, then records a payment from them to you. */
+  const markReceived = (uid: string, pence: number) => {
+    const name = memberOf(uid)?.name ?? 'them';
+    Alert.alert(
+      `Received from ${name}?`,
+      `This records that ${name} paid you ${formatPence(
+        pence,
+      )}. Only confirm if you've received it. Balances update for everyone.`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: `Received ${formatPence(pence)}`,
+          onPress: () => recordPayment(uid, me, pence),
+        },
+      ],
+    );
+  };
 
   const renderBalances = () => {
     if (!hasHistory) {
@@ -1058,12 +1114,7 @@ const Money = () => {
                 pence={p.pence}
                 color={OWE_COLOR}
                 action="settle"
-                onPress={() =>
-                  navigation.navigate('SettleUp', {
-                    withUid: p.uid,
-                    amountPence: p.pence,
-                  })
-                }
+                onPress={() => settleUp(p.uid, p.pence)}
               />
             ))}
           </View>
@@ -1079,10 +1130,8 @@ const Money = () => {
                 index={indexOf(p.uid)}
                 pence={p.pence}
                 color={OWED_COLOR}
-                action="open"
-                onPress={() =>
-                  navigation.navigate('PersonBalance', {uid: p.uid})
-                }
+                action="received"
+                onPress={() => markReceived(p.uid, p.pence)}
               />
             ))}
           </View>
