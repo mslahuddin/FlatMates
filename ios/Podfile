@@ -13,6 +13,11 @@ use_frameworks! :linkage => :static
 $RNFirebaseAsStaticFramework = true
 $RNFirebaseDisableSPM = true
 
+
+require_relative '../node_modules/react-native-permissions/scripts/setup'
+setup_permissions(['LocationAlways', 'LocationWhenInUse'])
+
+
 target 'FlatMates' do
   config = use_native_modules!
 

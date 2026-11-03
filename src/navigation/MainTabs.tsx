@@ -14,6 +14,7 @@ import DashBoard from '../screens/Home/DashBoard';
 import FlatScreen from '../screens/Flat/Flat';
 import MoneyScreen from '../screens/Money/Money';
 import DutiesScreen from '../screens/Duties/Duties';
+import LocationScreen from '../screens/Location/location';
 import {useColors} from '../theme';
 
 /* ---------- Types ---------- */
@@ -22,7 +23,7 @@ export type MainTabParamList = {
   Home: undefined;
   Money: undefined;
   Duties: undefined;
-  Shared: undefined;
+  Location: undefined;
   Flat: undefined;
 };
 
@@ -128,10 +129,10 @@ const Duties = () => (
     message="Chores, rotations and who is up next will live here."
   />
 );
-const Shared = () => (
+const Location = () => (
   <Placeholder
-    title="Shared"
-    icon="shopping-basket"
+    title="Location"
+    icon="place"
     message="Groceries, repairs and flat info will live here."
   />
 );
@@ -176,9 +177,9 @@ export function MainTabs() {
         options={{tabBarIcon: tabIcon('check-box')}}
       />
       <Tab.Screen
-        name="Shared"
-        component={Shared}
-        options={{tabBarIcon: tabIcon('shopping-basket')}}
+        name="Location"
+        component={LocationScreen}
+        options={{tabBarIcon: tabIcon('place')}}
       />
       <Tab.Screen
         name="Flat"

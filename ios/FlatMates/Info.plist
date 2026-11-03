@@ -41,6 +41,16 @@
 	<string>Flatmate lets you attach a receipt photo from your photo library.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
+
+	<key>NSLocationWhenInUseUsageDescription</key>
+<string>Flatmate shows your flatmates where you are, only when you choose to share.</string>
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>Flatmate can share your location with your flatmates even when the app is closed. You can switch this off at any time.</string>
+<key>UIBackgroundModes</key>
+<array>
+  <string>location</string>
+</array>
+
 	<key>UIAppFonts</key>
 	<array>
 		<string>MaterialIcons.ttf</string>
