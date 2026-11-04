@@ -40,7 +40,7 @@ export const TextField = forwardRef<TextFieldRef, Props>(
     const borderColor = error
       ? ERROR_COLOR
       : focused
-        ? colors.lightGreen
+        ? colors.accent
         : 'rgba(255,255,255,0.12)';
 
     return (
@@ -48,7 +48,7 @@ export const TextField = forwardRef<TextFieldRef, Props>(
         <View
           style={[
             styles.box,
-            {borderColor, backgroundColor: 'rgba(0,0,0,0.28)'},
+            {borderColor, backgroundColor: colors.card},
           ]}>
           <View style={styles.inputColumn}>
             <Text style={[styles.label, {color: colors.textMuted}]}>
@@ -58,11 +58,11 @@ export const TextField = forwardRef<TextFieldRef, Props>(
               ref={ref}
               accessibilityLabel={label}
               placeholderTextColor={colors.textMuted}
-              selectionColor={colors.lightGreen}
+              selectionColor={colors.accent}
               secureTextEntry={isPassword && hidden}
               autoCapitalize="none"
               autoCorrect={false}
-              style={[styles.input, {color: colors.white}, style]}
+              style={[styles.input, {color: colors.text}, style]}
               onFocus={e => {
                 setFocused(true);
                 onFocus?.(e);

@@ -8,11 +8,11 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
-import {useColors} from '../../../theme';
+import {useColors , MONO} from '../../../theme';
 
 /* ---------- Helpers ---------- */
 
-const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
+
 const CHIP_FILL = 'rgba(255,255,255,0.07)';
 const QR_SIZE = wp(34);
 const QR_FOREGROUND = '#0F1A17';
@@ -68,25 +68,25 @@ const FlatCreated = () => {
       style={[styles.screen, {backgroundColor: colors.background}]}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, {color: colors.white}]}>
+          <Text style={[styles.title, {color: colors.text}]}>
             {flatName} is ready
           </Text>
-          <Text style={[styles.subtitle, {color: colors.surfaceAlt}]}>
+          <Text style={[styles.subtitle, {color: colors.textSecondary}]}>
             Share this code with your flatmates. It works for 7 days.
           </Text>
         </View>
 
         <View style={styles.ticketWrap}>
-          <View style={[styles.ticket, {borderColor: colors.lightGreen}]}>
+          <View style={[styles.ticket, {borderColor: colors.accent}]}>
             <View
               style={[
                 StyleSheet.absoluteFill,
-                {backgroundColor: colors.lightGreen, opacity: 0.16},
+                {backgroundColor: colors.accent, opacity: 0.16},
               ]}
             />
             <Text
               selectable
-              style={[styles.code, {color: colors.lightGreen}]}
+              style={[styles.code, {color: colors.accent}]}
               accessibilityLabel={`Invite code ${inviteCode}`}>
               {inviteCode}
             </Text>
@@ -96,7 +96,7 @@ const FlatCreated = () => {
               styles.notch,
               styles.notchLeft,
               {
-                borderColor: colors.lightGreen,
+                borderColor: colors.accent,
                 backgroundColor: colors.background,
               },
             ]}
@@ -106,7 +106,7 @@ const FlatCreated = () => {
               styles.notch,
               styles.notchRight,
               {
-                borderColor: colors.lightGreen,
+                borderColor: colors.accent,
                 backgroundColor: colors.background,
               },
             ]}
@@ -131,8 +131,8 @@ const FlatCreated = () => {
             onPress={onCopy}
             accessibilityRole="button"
             accessibilityLabel={`Copy invite code ${inviteCode}`}
-            style={({pressed}) => [styles.action, pressed && styles.pressed]}>
-            <Text style={[styles.actionText, {color: colors.white}]}>
+            style={({pressed}) => [styles.action , {backgroundColor: colors.chip}, pressed && styles.pressed]}>
+            <Text style={[styles.actionText, {color: colors.text}]}>
               {copied ? 'Copied' : 'Copy code'}
             </Text>
           </Pressable>
@@ -140,8 +140,8 @@ const FlatCreated = () => {
             onPress={onShare}
             accessibilityRole="button"
             accessibilityLabel="Share invite link"
-            style={({pressed}) => [styles.action, pressed && styles.pressed]}>
-            <Text style={[styles.actionText, {color: colors.white}]}>
+            style={({pressed}) => [styles.action, {backgroundColor: colors.chip}, pressed && styles.pressed]}>
+            <Text style={[styles.actionText, {color: colors.text}]}>
               Share link
             </Text>
           </Pressable>
@@ -155,7 +155,7 @@ const FlatCreated = () => {
           accessibilityLabel="Go to dashboard"
           style={({pressed}) => [
             styles.cta,
-            {backgroundColor: colors.lightGreen},
+            {backgroundColor: colors.accent},
             pressed && styles.pressed,
           ]}>
           <Text style={[styles.ctaText, {color: colors.black}]}>
@@ -220,7 +220,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: wp(4),
     paddingVertical: hp(1.7),
-    backgroundColor: CHIP_FILL,
   },
   actionText: {fontSize: 17, fontWeight: '600'},
 

@@ -42,14 +42,14 @@ export const EmptyState = ({
         <View
           style={[
             StyleSheet.absoluteFill,
-            {backgroundColor: colors.lightGreen, opacity: 0.16},
+            {backgroundColor: colors.accent, opacity: 0.16},
           ]}
         />
-        <Icon name={icon} size={wp(9)} color={colors.lightGreen} />
+        <Icon name={icon} size={wp(9)} color={colors.accent} />
       </View>
 
-      <Text style={[styles.title, {color: colors.white}]}>{title}</Text>
-      <Text style={[styles.description, {color: colors.surfaceAlt}]}>
+      <Text style={[styles.title, {color: colors.text}]}>{title}</Text>
+      <Text style={[styles.description, {color: colors.textSecondary}]}>
         {description}
       </Text>
 

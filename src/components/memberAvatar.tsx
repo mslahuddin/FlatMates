@@ -1,15 +1,9 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {widthPercentageToDP as wp} from 'react-native-responsive-screen';
-import {useColors} from '../theme';
+import {useColors, AVATAR_COLORS} from '../theme';
 
-export const AVATAR_COLORS = [
-  '#3B7A68',
-  '#4A6FA5',
-  '#A0661C',
-  '#8B4A7B',
-  '#5C6BC0',
-];
+
 
 const initials = (name: string) =>
   name.trim().slice(0, 1).toUpperCase() + name.trim().slice(1, 2).toLowerCase();
@@ -37,7 +31,7 @@ export const MemberAvatar = ({name, index, size = wp(12)}: Props) => {
           backgroundColor: AVATAR_COLORS[index % AVATAR_COLORS.length],
         },
       ]}>
-      <Text style={[styles.text, {color: colors.white, fontSize: size * 0.34}]}>
+      <Text style={[styles.text, {color: colors.text, fontSize: size * 0.34}]}>
         {initials(name)}
       </Text>
     </View>

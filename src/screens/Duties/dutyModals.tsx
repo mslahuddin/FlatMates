@@ -283,13 +283,13 @@ export const AddDutyModal = ({
           onBlur={() => setFocus(null)}
           placeholder="Clean the kitchen, take the bins out"
           placeholderTextColor={colors.textMuted}
-          selectionColor={colors.lightGreen}
+          selectionColor={colors.accent}
           autoCapitalize="sentences"
           maxLength={60}
           autoFocus
           returnKeyType="next"
           accessibilityLabel="Duty name"
-          style={[d.input, {color: colors.white}]}
+          style={[d.input, {color: colors.text}]}
         />
       </FieldCard>
 
@@ -303,12 +303,12 @@ export const AddDutyModal = ({
           onBlur={() => setFocus(null)}
           placeholder="Wipe the surfaces, empty the dishwasher…"
           placeholderTextColor={colors.textMuted}
-          selectionColor={colors.lightGreen}
+          selectionColor={colors.accent}
           autoCapitalize="sentences"
           maxLength={200}
           multiline
           accessibilityLabel="Description, optional"
-          style={[d.input, d.multiline, {color: colors.white}]}
+          style={[d.input, d.multiline, {color: colors.text}]}
         />
       </FieldCard>
 
@@ -333,7 +333,7 @@ export const AddDutyModal = ({
               setAssigned(allSelected ? [] : members.map(m => m.id))
             }>
             <View style={d.everyoneIcon}>
-              <Icon name="groups" size={wp(5)} color={colors.lightGreen} />
+              <Icon name="groups" size={wp(5)} color={colors.accent} />
             </View>
           </SplitChip>
           {members.map((member, index) => (

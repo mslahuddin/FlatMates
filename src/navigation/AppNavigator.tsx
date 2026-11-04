@@ -41,7 +41,7 @@ export function AppNavigator() {
           backgroundColor: colors.background,
           justifyContent: 'center',
         }}>
-        <ActivityIndicator color={colors.lightGreen} />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }

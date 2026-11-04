@@ -18,14 +18,10 @@ import {
 } from 'react-native-responsive-screen';
 import {useNavigation} from '@react-navigation/native';
 import {createFlat} from '../../../services/flat';
-import {useColors} from '../../../theme';
-
+import {useColors , MONO} from '../../../theme';
 /* ---------- Helpers ---------- */
 
-const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
-const CARD_BORDER = 'rgba(255,255,255,0.12)';
-const CARD_FILL = 'rgba(0,0,0,0.28)';
-const CHIP_FILL = 'rgba(255,255,255,0.07)';
+
 
 const MIN_MEMBERS = 2;
 const MAX_MEMBERS = 10;
@@ -52,9 +48,13 @@ const Field = ({
   const colors = useColors();
   return (
     <View
-      style={[
+    style={[
         styles.field,
-        focused && {borderColor: colors.lightGreen, borderWidth: 1.5},
+        {
+          borderColor: focused ? colors.accent : colors.cardBorder,
+          backgroundColor: colors.card,
+          borderWidth: focused ? 1.5 : 1,
+        },
         style,
       ]}>
       <Label text={label} />
@@ -83,12 +83,13 @@ const StepButton = ({
       accessibilityLabel={label}
       accessibilityState={{disabled}}
       hitSlop={wp(2)}
-      style={({pressed}) => [
-        styles.step,
-        pressed && styles.pressed,
-        disabled && styles.disabled,
-      ]}>
-      <Text style={[styles.stepText, {color: colors.white}]}>{icon}</Text>
+     style={({pressed}) => [
+  styles.step,
+  {backgroundColor: colors.card},
+  pressed && styles.pressed,
+  disabled && styles.disabled,
+]}>
+      <Text style={[styles.stepText, {color: colors.text}]}>{icon}</Text>
     </Pressable>
   );
 };
@@ -145,12 +146,12 @@ const CreateFlat = () => {
             accessibilityLabel="Go back"
             hitSlop={wp(3)}
             style={({pressed}) => [styles.back, pressed && styles.pressed]}>
-            <Text style={[styles.backText, {color: colors.lightGreen}]}>
+            <Text style={[styles.backText, {color: colors.accent}]}>
               ‹ Back
             </Text>
           </Pressable>
 
-          <Text style={[styles.title, {color: colors.white}]}>
+          <Text style={[styles.title, {color: colors.text}]}>
             Create your flat
           </Text>
 
@@ -168,7 +169,7 @@ const CreateFlat = () => {
                 returnKeyType="next"
                 maxLength={40}
                 accessibilityLabel="Flat name"
-                style={[styles.input, {color: colors.white}]}
+                style={[styles.input, {color: colors.text}]}
               />
             </Field>
 
@@ -186,11 +187,19 @@ const CreateFlat = () => {
                 returnKeyType="done"
                 maxLength={80}
                 accessibilityLabel="Address, optional"
-                style={[styles.input, {color: colors.white}]}
+                style={[styles.input, {color: colors.text}]}
               />
             </Field>
 
-            <View style={[styles.field, styles.stepperField]}>
+            <View
+  style={[
+    styles.field,
+    styles.stepperField,
+    {
+      backgroundColor: colors.card,
+      borderColor: colors.cardBorder,
+    },
+  ]}>
               <View style={styles.stepperCopy}>
                 <Label text="MAXIMUM FLATMATES" />
                 <Text style={[styles.hint, {color: colors.textMuted}]}>
@@ -205,7 +214,7 @@ const CreateFlat = () => {
                   onPress={() => setMaxMembers(n => n - 1)}
                 />
                 <Text
-                  style={[styles.count, {color: colors.white}]}
+                  style={[styles.count, {color: colors.text}]}
                   accessibilityLabel={`${maxMembers} flatmates`}>
                   {maxMembers}
                 </Text>
@@ -222,7 +231,7 @@ const CreateFlat = () => {
           {error ? (
             <Text
               accessibilityRole="alert"
-              style={[styles.error, {color: colors.surfaceAlt}]}>
+              style={[styles.error, {color: colors.textSecondary}]}>
               {error}
             </Text>
           ) : null}
@@ -237,7 +246,7 @@ const CreateFlat = () => {
             accessibilityState={{disabled: !canSubmit, busy: submitting}}
             style={({pressed}) => [
               styles.cta,
-              {backgroundColor: colors.lightGreen},
+              {backgroundColor: colors.accent},
               pressed && styles.pressed,
               !canSubmit && styles.disabled,
             ]}>
@@ -281,8 +290,7 @@ const styles = StyleSheet.create({
   field: {
     borderRadius: wp(5),
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: CARD_FILL,
+    
     paddingHorizontal: wp(5),
     paddingVertical: hp(1.8),
     gap: hp(0.6),
@@ -315,7 +323,7 @@ const styles = StyleSheet.create({
     borderRadius: wp(6),
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: CHIP_FILL,
+  
   },
   stepText: {fontSize: 22, fontWeight: '700'},
   count: {

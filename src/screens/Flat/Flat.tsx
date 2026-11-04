@@ -27,15 +27,13 @@ import {
 } from '../../services/flat';
 import {useFlat} from '../../hooks/useFlat';
 import {useColors} from '../../theme';
+import {MONO , AVATAR_COLORS} from '../../theme'
 
 /* ---------- Helpers ---------- */
 
-const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
-const AVATAR_COLORS = ['#3B7A68', '#4A6FA5', '#A0661C', '#8B4A7B', '#5C6BC0'];
-const CARD_BORDER = 'rgba(255,255,255,0.12)';
-const CARD_FILL = 'rgba(0,0,0,0.28)';
-const CHIP_FILL = 'rgba(255,255,255,0.07)';
-const DANGER = '#E5705F';
+
+
+
 
 const initials = (name: string) =>
   name.trim().slice(0, 1).toUpperCase() + name.trim().slice(1, 2).toLowerCase();
@@ -51,7 +49,6 @@ const formatDate = (date: Date) =>
   });
 
 /* ---------- Small building blocks ---------- */
-
 const Card = ({
   children,
   dashed,
@@ -60,14 +57,30 @@ const Card = ({
   children: React.ReactNode;
   dashed?: boolean;
   style?: StyleProp<ViewStyle>;
-}) => (
-  <View style={[styles.card, dashed && styles.cardDashed, style]}>
-    {children}
-  </View>
-);
+}) => {
+  const colors = useColors();
+
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          borderColor: colors.cardBorder,
+          backgroundColor: dashed ? 'transparent' : colors.card,
+        },
+        dashed && styles.cardDashed,
+        style,
+      ]}>
+      {children}
+    </View>
+  );
+};
+
+
 
 const Label = ({text}: {text: string}) => {
   const colors = useColors();
+ 
   return <Text style={[styles.label, {color: colors.textMuted}]}>{text}</Text>;
 };
 
@@ -91,9 +104,9 @@ const Pill = ({
 const RolePill = ({role}: {role: Member['role']}) => {
   const colors = useColors();
   return role === 'owner' ? (
-    <Pill label="Owner" tint={colors.lightGreen} textColor={colors.lightGreen} />
+    <Pill label="Owner" tint={colors.accent} textColor={colors.accent} />
   ) : (
-    <Pill label="Flatmate" tint={colors.white} textColor={colors.surfaceAlt} />
+    <Pill label="Flatmate" tint={colors.text} textColor={colors.textSecondary} />
   );
 };
 
@@ -123,7 +136,7 @@ const Avatar = ({
       <Text
         style={[
           styles.avatarText,
-          {color: colors.white, fontSize: size * 0.34},
+          {color: colors.text, fontSize: size * 0.34},
         ]}>
         {initials(name)}
       </Text>
@@ -153,7 +166,7 @@ const MemberRow = ({
       accessibilityLabel={isMe ? `${member.name}, you` : `View ${member.name}`}
       style={({pressed}) => [styles.memberRow, pressed && styles.pressed]}>
       <Avatar name={member.name} color={color} size={wp(12)} />
-      <Text style={[styles.memberName, {color: colors.white}]} numberOfLines={1}>
+      <Text style={[styles.memberName, {color: colors.text}]} numberOfLines={1}>
         {member.name}
         {isMe ? (
           <Text style={[styles.memberYou, {color: colors.textMuted}]}>
@@ -190,10 +203,10 @@ const ProfileCard = ({
       <View style={styles.profileRow}>
         <Avatar name={name} color={color} size={wp(15)} />
         <View style={styles.profileCopy}>
-          <Text style={[styles.profileName, {color: colors.white}]}>{name}</Text>
+          <Text style={[styles.profileName, {color: colors.text}]}>{name}</Text>
           {email ? (
             <Text
-              style={[styles.profileEmail, {color: colors.surfaceAlt}]}
+              style={[styles.profileEmail, {color: colors.textSecondary}]}
               numberOfLines={1}>
               {email}
             </Text>
@@ -239,12 +252,18 @@ const MemberModal = ({
         {member ? (
           <SafeAreaView
             edges={['bottom']}
-            style={[styles.sheet, {backgroundColor: colors.background}]}>
-            <View style={styles.sheetHandle} />
+             style={[
+  styles.sheet,
+  {
+    backgroundColor: colors.background,
+    borderColor: colors.cardBorder,
+  },
+]}>
+            <View style={[styles.sheetHandle, {backgroundColor: colors.chip}]} />
 
             <View style={styles.sheetHeader}>
               <Avatar name={member.name} color={color} size={wp(20)} />
-              <Text style={[styles.sheetName, {color: colors.white}]}>
+              <Text style={[styles.sheetName, {color: colors.text}]}>
                 {member.name}
               </Text>
               <RolePill role={member.role} />
@@ -253,14 +272,14 @@ const MemberModal = ({
             <Card>
               <View style={styles.detailRow}>
                 <Label text="ROLE" />
-                <Text style={[styles.detailValue, {color: colors.white}]}>
+                <Text style={[styles.detailValue, {color: colors.text}]}>
                   {member.role === 'owner' ? 'Owner' : 'Flatmate'}
                 </Text>
               </View>
               {member.joinedAt ? (
                 <View style={styles.detailRow}>
                   <Label text="JOINED" />
-                  <Text style={[styles.detailValue, {color: colors.white}]}>
+                  <Text style={[styles.detailValue, {color: colors.text}]}>
                     {formatDate(member.joinedAt)}
                   </Text>
                 </View>
@@ -276,13 +295,14 @@ const MemberModal = ({
                 accessibilityState={{disabled: busy, busy}}
                 style={({pressed}) => [
                   styles.danger,
+                  {borderColor: colors.danger},
                   pressed && styles.pressed,
                   busy && styles.disabled,
                 ]}>
                 {busy ? (
-                  <ActivityIndicator color={DANGER} />
+                  <ActivityIndicator color={colors.danger} />
                 ) : (
-                  <Text style={[styles.dangerText, {color: DANGER}]}>
+                  <Text style={[styles.dangerText, {color: colors.danger}]}>
                     Remove {member.name} from flat
                   </Text>
                 )}
@@ -293,8 +313,8 @@ const MemberModal = ({
               onPress={onClose}
               accessibilityRole="button"
               accessibilityLabel="Close"
-              style={({pressed}) => [styles.action, pressed && styles.pressed]}>
-              <Text style={[styles.actionText, {color: colors.white}]}>
+              style={({pressed}) => [styles.action, {backgroundColor: colors.chip}, pressed && styles.pressed]}>
+              <Text style={[styles.actionText, {color: colors.text}]}>
                 Close
               </Text>
             </Pressable>
@@ -388,13 +408,13 @@ const Flat = () => {
   const renderBody = () => {
     if (loading) {
       return (
-        <ActivityIndicator color={colors.lightGreen} style={styles.loader} />
+        <ActivityIndicator color={colors.accent} style={styles.loader} />
       );
     }
     if (error) {
       return (
         <Card dashed>
-          <Text style={[styles.hint, {color: colors.surfaceAlt}]}>
+          <Text style={[styles.hint, {color: colors.textSecondary}]}>
             We couldn't load your flat. Check your connection and try again.
           </Text>
         </Card>
@@ -403,7 +423,7 @@ const Flat = () => {
     if (!flat) {
       return (
         <Card dashed>
-          <Text style={[styles.hint, {color: colors.surfaceAlt}]}>
+          <Text style={[styles.hint, {color: colors.textSecondary}]}>
             You're not in a flat yet. Create one or join with a code from the
             dashboard.
           </Text>
@@ -413,11 +433,11 @@ const Flat = () => {
     return (
       <>
         <Card style={styles.flatCard}>
-          <Text style={[styles.flatName, {color: colors.white}]}>
+          <Text style={[styles.flatName, {color: colors.text}]}>
             {flat.name}
           </Text>
           {flat.address ? (
-            <Text style={[styles.flatAddress, {color: colors.surfaceAlt}]}>
+            <Text style={[styles.flatAddress, {color: colors.textSecondary}]}>
               {flat.address}
             </Text>
           ) : null}
@@ -453,13 +473,14 @@ const Flat = () => {
           accessibilityState={{disabled: leaving, busy: leaving}}
           style={({pressed}) => [
             styles.danger,
+            {borderColor: colors.danger},
             pressed && styles.pressed,
             leaving && styles.disabled,
           ]}>
           {leaving ? (
-            <ActivityIndicator color={DANGER} />
+            <ActivityIndicator color={colors.danger} />
           ) : (
-            <Text style={[styles.dangerText, {color: DANGER}]}>Leave flat</Text>
+            <Text style={[styles.dangerText, {color: colors.danger}]}>Leave flat</Text>
           )}
         </Pressable>
       </>
@@ -473,7 +494,7 @@ const Flat = () => {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, {color: colors.white}]}>Flat</Text>
+        <Text style={[styles.title, {color: colors.text}]}>Flat</Text>
         {renderBody()}
       </ScrollView>
 
@@ -509,8 +530,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: wp(5),
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: CARD_FILL,
+
     padding: wp(5),
     gap: hp(1.2),
   },
@@ -559,7 +579,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: wp(4),
     borderWidth: 1.5,
-    borderColor: DANGER,
+  
     paddingVertical: hp(1.7),
   },
   dangerText: {fontSize: 17, fontWeight: '600'},
@@ -570,7 +590,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: wp(7),
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: CARD_BORDER,
     paddingHorizontal: wp(6),
     paddingTop: hp(1.2),
     paddingBottom: hp(1),
@@ -581,7 +600,7 @@ const styles = StyleSheet.create({
     width: wp(10),
     height: 4,
     borderRadius: 2,
-    backgroundColor: CHIP_FILL,
+
   },
   sheetHeader: {alignItems: 'center', gap: hp(1.2)},
   sheetName: {fontSize: 26, fontWeight: '700'},
@@ -596,7 +615,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: wp(4),
     paddingVertical: hp(1.7),
-    backgroundColor: CHIP_FILL,
+   
   },
   actionText: {fontSize: 17, fontWeight: '600'},
 });

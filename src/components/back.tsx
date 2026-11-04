@@ -17,7 +17,7 @@ type Props = {
 export const Back = ({title = 'Back', onPress, color}: Props) => {
   const colors = useColors();
   const navigation = useNavigation();
-  const tint = color ?? colors.lightGreen;
+  const tint = color ?? colors.accent;
 
   return (
     <Pressable

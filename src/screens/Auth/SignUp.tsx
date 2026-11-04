@@ -75,10 +75,10 @@ const onContinue = async () => {
           <Back title="Back" />
 
           <View style={styles.header}>
-            <Text style={[styles.title, {color: colors.white}]}>
+            <Text style={[styles.title, {color: colors.text}]}>
               Create your account
             </Text>
-            <Text style={[styles.subtitle, {color: colors.surfaceAlt}]}>
+            <Text style={[styles.subtitle, {color: colors.textSecondary}]}>
               Use an email you check. You can add a photo next.
             </Text>
           </View>
@@ -132,9 +132,9 @@ const onContinue = async () => {
             accessibilityRole="button"
             accessibilityLabel="Already have an account? Sign in"
             style={styles.switchRow}>
-            <Text style={[styles.switchText, {color: colors.surfaceAlt}]}>
+            <Text style={[styles.switchText, {color: colors.textSecondary}]}>
               Already have an account?{' '}
-              <Text style={[styles.switchLink, {color: colors.lightGreen}]}>
+              <Text style={[styles.switchLink, {color: colors.accent}]}>
                 Sign in
               </Text>
             </Text>

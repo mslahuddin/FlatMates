@@ -21,13 +21,10 @@ import {
 } from '@react-navigation/native';
 import {joinFlat, flatErrorMessage} from '../../../services/flat';
 import {useColors} from '../../../theme';
+import {MONO} from '../../../theme'
 
 /* ---------- Helpers ---------- */
 
-const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
-const CARD_BORDER = 'rgba(255,255,255,0.12)';
-const CARD_FILL = 'rgba(0,0,0,0.28)';
-const CHIP_FILL = 'rgba(255,255,255,0.07)';
 
 type Params = {JoinFlat: {scannedCode?: string} | undefined};
 
@@ -95,16 +92,16 @@ const JoinFlat = () => {
             accessibilityLabel="Go back"
             hitSlop={wp(3)}
             style={({pressed}) => [styles.back, pressed && styles.pressed]}>
-            <Text style={[styles.backText, {color: colors.lightGreen}]}>
+            <Text style={[styles.backText, {color: colors.accent}]}>
               ‹ Back
             </Text>
           </Pressable>
 
           <View style={styles.header}>
-            <Text style={[styles.title, {color: colors.white}]}>
+            <Text style={[styles.title, {color: colors.text}]}>
               Join a flat
             </Text>
-            <Text style={[styles.subtitle, {color: colors.surfaceAlt}]}>
+            <Text style={[styles.subtitle, {color: colors.textSecondary}]}>
               Type the code a flatmate sent you, or scan their QR.
             </Text>
           </View>
@@ -112,7 +109,8 @@ const JoinFlat = () => {
           <View
             style={[
               styles.field,
-              focused && {borderColor: colors.lightGreen, borderWidth: 1.5},
+              {backgroundColor: colors.card, borderColor: colors.cardBorder},
+              focused && {borderColor: colors.accent, borderWidth: 1.5},
               !!error && !focused && styles.fieldError,
             ]}>
             <Text style={[styles.label, {color: colors.textMuted}]}>
@@ -133,7 +131,7 @@ const JoinFlat = () => {
               returnKeyType="go"
               maxLength={16}
               accessibilityLabel="Invite code"
-              style={[styles.input, {color: colors.white}]}
+              style={[styles.input, {color: colors.text}]}
             />
           </View>
 
@@ -141,8 +139,8 @@ const JoinFlat = () => {
             onPress={() => navigation.navigate('ScanQR')}
             accessibilityRole="button"
             accessibilityLabel="Scan QR code"
-            style={({pressed}) => [styles.scan, pressed && styles.pressed]}>
-            <Text style={[styles.scanText, {color: colors.white}]}>
+            style={({pressed}) => [[styles.scan, { backgroundColor: colors.chip,}], pressed && styles.pressed]}>
+            <Text style={[styles.scanText, {color: colors.text}]}>
               Scan QR code
             </Text>
           </Pressable>
@@ -150,7 +148,7 @@ const JoinFlat = () => {
           {error ? (
             <Text
               accessibilityRole="alert"
-              style={[styles.error, {color: colors.surfaceAlt}]}>
+              style={[styles.error, {color: colors.textSecondary}]}>
               {error}
             </Text>
           ) : null}
@@ -165,7 +163,7 @@ const JoinFlat = () => {
             accessibilityState={{disabled: !canSubmit, busy: submitting}}
             style={({pressed}) => [
               styles.cta,
-              {backgroundColor: colors.lightGreen},
+              {backgroundColor: colors.accent},
               pressed && styles.pressed,
               !canSubmit && styles.disabled,
             ]}>
@@ -210,8 +208,7 @@ const styles = StyleSheet.create({
   field: {
     borderRadius: wp(5),
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: CARD_FILL,
+   
     paddingHorizontal: wp(5),
     paddingVertical: hp(1.8),
     gap: hp(0.6),
@@ -235,7 +232,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: wp(5),
     paddingVertical: hp(2),
-    backgroundColor: CHIP_FILL,
+   
   },
   scanText: {fontSize: 18, fontWeight: '600'},
 

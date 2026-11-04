@@ -36,7 +36,7 @@ export function SegmentedControl<T extends string>({
             <Text
               style={[
                 styles.label,
-                {color: selected ? colors.white : colors.surfaceAlt},
+                {color: selected ? colors.text : colors.textSecondary},
                 selected && styles.labelSelected,
               ]}>
               {option.label}

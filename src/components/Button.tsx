@@ -19,7 +19,7 @@ export function Button({label, onPress, variant = 'primary'}: Props) {
       accessibilityLabel={label}
       style={({pressed}) => [
         styles.base,
-        {backgroundColor: isPrimary ? colors.lightGreen : 'transparent'},
+        {backgroundColor: isPrimary ? colors.accent : 'transparent'},
         pressed && styles.pressed,
       ]}>
       <Text

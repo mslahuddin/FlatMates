@@ -23,16 +23,15 @@ import {getAuth} from '@react-native-firebase/auth';
 import {signOut} from '../../services/auth';
 import type {Member} from '../../services/flat';
 import {useFlat} from '../../hooks/useFlat';
-import {useColors} from '../../theme';
+import {useColors , AVATAR_COLORS , MONO} from '../../theme';
 import Money from '../../screens/Money/Money';
 /* ---------- Helpers ---------- */
 
-const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
-const AVATAR_COLORS = ['#3B7A68', '#4A6FA5', '#A0661C', '#8B4A7B', '#5C6BC0'];
+
+
 const MAX_AVATARS = 5;
-const CARD_BORDER = 'rgba(255,255,255,0.12)';
-const CARD_FILL = 'rgba(0,0,0,0.28)';
-const CHIP_FILL = 'rgba(255,255,255,0.07)';
+
+
 
 const greeting = () => {
   const hour = new Date().getHours();
@@ -55,11 +54,24 @@ const Card = ({
   children: React.ReactNode;
   dashed?: boolean;
   style?: StyleProp<ViewStyle>;
-}) => (
-  <View style={[styles.card, dashed && styles.cardDashed, style]}>
-    {children}
-  </View>
-);
+}) => {
+  const colors = useColors();
+
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          borderColor: colors.cardBorder,
+          backgroundColor: dashed ? 'transparent' : colors.card,
+        },
+        dashed && styles.cardDashed,
+        style,
+      ]}>
+      {children}
+    </View>
+  );
+};
 
 const Label = ({text}: {text: string}) => {
   const colors = useColors();
@@ -105,8 +117,8 @@ const FlatmatesCard = ({
         <Label text="FLATMATES" />
         <Pill
           label={`${members.length} of ${maxMembers} joined`}
-          tint={colors.white}
-          textColor={colors.surfaceAlt}
+          tint={colors.text}
+          textColor={colors.textSecondary}
         />
       </View>
 
@@ -124,7 +136,7 @@ const FlatmatesCard = ({
                 marginLeft: index === 0 ? 0 : -wp(2.5),
               },
             ]}>
-            <Text style={[styles.avatarText, {color: colors.white}]}>
+            <Text style={[styles.avatarText, {color: colors.text}]}>
               {initials(member.name)}
             </Text>
           </View>
@@ -135,12 +147,12 @@ const FlatmatesCard = ({
             style={[
               styles.avatar,
               {
-                backgroundColor: CHIP_FILL,
+                backgroundColor: colors.chip,
                 borderColor: colors.background,
                 marginLeft: -wp(2.5),
               },
             ]}>
-            <Text style={[styles.avatarText, {color: colors.white}]}>
+            <Text style={[styles.avatarText, {color: colors.text}]}>
               +{extra}
             </Text>
           </View>
@@ -202,16 +214,16 @@ const InviteCard = ({code, flatName}: {code: string; flatName: string}) => {
       <Label text="INVITE CODE" />
 
       <View style={styles.ticketWrap}>
-        <View style={[styles.ticket, {borderColor: colors.lightGreen}]}>
+        <View style={[styles.ticket, {borderColor: colors.accent}]}>
           <View
             style={[
               StyleSheet.absoluteFill,
-              {backgroundColor: colors.lightGreen, opacity: 0.16},
+              {backgroundColor: colors.accent, opacity: 0.16},
             ]}
           />
           <Text
             selectable
-            style={[styles.code, {color: colors.lightGreen}]}
+            style={[styles.code, {color: colors.accent}]}
             accessibilityLabel={`Invite code ${code}`}>
             {code}
           </Text>
@@ -221,7 +233,7 @@ const InviteCard = ({code, flatName}: {code: string; flatName: string}) => {
             styles.notch,
             styles.notchLeft,
             {
-              borderColor: colors.lightGreen,
+              borderColor: colors.accent,
               backgroundColor: colors.background,
             },
           ]}
@@ -231,7 +243,7 @@ const InviteCard = ({code, flatName}: {code: string; flatName: string}) => {
             styles.notch,
             styles.notchRight,
             {
-              borderColor: colors.lightGreen,
+              borderColor: colors.accent,
               backgroundColor: colors.background,
             },
           ]}
@@ -243,8 +255,8 @@ const InviteCard = ({code, flatName}: {code: string; flatName: string}) => {
           onPress={onCopy}
           accessibilityRole="button"
           accessibilityLabel={`Copy invite code ${code}`}
-          style={({pressed}) => [styles.action, pressed && styles.pressed]}>
-          <Text style={[styles.actionText, {color: colors.white}]}>
+          style={({pressed}) => [styles.action, {backgroundColor: colors.chip}, pressed && styles.pressed]}>
+          <Text style={[styles.actionText, {color: colors.text}]}>
             {copied ? 'Copied' : 'Copy'}
           </Text>
         </Pressable>
@@ -252,8 +264,8 @@ const InviteCard = ({code, flatName}: {code: string; flatName: string}) => {
           onPress={onShare}
           accessibilityRole="button"
           accessibilityLabel="Share invite code"
-          style={({pressed}) => [styles.action, pressed && styles.pressed]}>
-          <Text style={[styles.actionText, {color: colors.white}]}>Share</Text>
+          style={({pressed}) => [styles.action, {backgroundColor: colors.chip}, pressed && styles.pressed]}>
+          <Text style={[styles.actionText, {color: colors.text}]}>Share</Text>
         </Pressable>
       </View>
     </Card>
@@ -270,15 +282,15 @@ const CreateFlatCard = ({onPress}: {onPress: () => void}) => {
       accessibilityRole="button"
       accessibilityLabel="Create a flat"
       style={({pressed}) => pressed && styles.pressed}>
-      <Card style={[styles.choiceCard, {borderColor: colors.lightGreen}]}>
+      <Card style={[styles.choiceCard, {borderColor: colors.accent}]}>
         <View
-          style={[styles.addCircle, {backgroundColor: colors.lightGreen}]}>
+          style={[styles.addCircle, {backgroundColor: colors.accent}]}>
           <Icon name="home" size={wp(8)} color={colors.black} />
         </View>
-        <Text style={[styles.choiceTitle, {color: colors.white}]}>
+        <Text style={[styles.choiceTitle, {color: colors.text}]}>
           Create a flat
         </Text>
-        <Text style={[styles.choiceSub, {color: colors.surfaceAlt}]}>
+        <Text style={[styles.choiceSub, {color: colors.textSecondary}]}>
           Set up your place and invite your flatmates.
         </Text>
       </Card>
@@ -299,14 +311,14 @@ const JoinFlatCard = ({onPress}: {onPress: () => void}) => {
           style={[
             styles.addCircle,
             styles.addCircleDashed,
-            {borderColor: colors.lightGreen},
+            {borderColor: colors.accent},
           ]}>
-          <Icon name="add" size={wp(8)} color={colors.lightGreen} />
+          <Icon name="add" size={wp(8)} color={colors.accent} />
         </View>
-        <Text style={[styles.choiceTitle, {color: colors.white}]}>
+        <Text style={[styles.choiceTitle, {color: colors.text}]}>
           Join a flat
         </Text>
-        <Text style={[styles.choiceSub, {color: colors.surfaceAlt}]}>
+        <Text style={[styles.choiceSub, {color: colors.textSecondary}]}>
           Enter a code or scan a QR from a flatmate.
         </Text>
       </Card>
@@ -321,7 +333,7 @@ const ComingNextCard = () => {
       <Label text="COMING NEXT" />
       <View style={styles.chips}>
         {['Money', 'Duties', 'Shopping'].map(item => (
-          <View key={item} style={styles.chip}>
+          <View key={item}  style={[styles.chip, {backgroundColor: colors.chip}]}>
             <Text style={[styles.chipText, {color: colors.textMuted}]}>
               {item}
             </Text>
@@ -364,7 +376,7 @@ const Dashboard = () => {
     if (loading) {
       return (
         <ActivityIndicator
-          color={colors.lightGreen}
+          color={colors.accent}
           style={styles.loader}
         />
       );
@@ -372,7 +384,7 @@ const Dashboard = () => {
     if (error) {
       return (
         <Card dashed>
-          <Text style={[styles.choiceSub, {color: colors.surfaceAlt}]}>
+          <Text style={[styles.choiceSub, {color: colors.textSecondary}]}>
             We couldn't load your flat. Check your connection and try again.
           </Text>
         </Card>
@@ -407,33 +419,33 @@ const Dashboard = () => {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
         <View>
-          <Text style={[styles.title, {color: colors.white}]}>
+          <Text style={[styles.title, {color: colors.text}]}>
             {greeting()}, {name}
           </Text>
           <Pressable onPress={signOut}>
-            <Text style={{color: colors.lightGreen}}>Sign out</Text>
+            <Text style={{color: colors.accent}}>Sign out</Text>
           </Pressable>
 
           {flat ? (
             <View style={styles.flatRow}>
-              <Text style={[styles.flatName, {color: colors.surfaceAlt}]}>
+              <Text style={[styles.flatName, {color: colors.textSecondary}]}>
                 {flat.name}
               </Text>
               {isOwner ? (
                 <>
-                  <Text style={[styles.flatName, {color: colors.surfaceAlt}]}>
+                  <Text style={[styles.flatName, {color: colors.textSecondary}]}>
                     ·
                   </Text>
                   <Pill
                     label="Owner"
-                    tint={colors.lightGreen}
-                    textColor={colors.lightGreen}
+                    tint={colors.accent}
+                    textColor={colors.accent}
                   />
                 </>
               ) : null}
             </View>
           ) : !loading && !error ? (
-            <Text style={[styles.flatName, {color: colors.surfaceAlt}]}>
+            <Text style={[styles.flatName, {color: colors.textSecondary}]}>
               You're not in a flat yet.
             </Text>
           ) : null}
@@ -471,8 +483,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: wp(5),
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: CARD_FILL,
+   
     padding: wp(5),
     gap: hp(1.6),
   },
@@ -539,7 +550,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: wp(4),
     paddingVertical: hp(1.5),
-    backgroundColor: CHIP_FILL,
   },
   actionText: {fontSize: 17, fontWeight: '600'},
 
@@ -558,7 +568,7 @@ const styles = StyleSheet.create({
   chips: {flexDirection: 'row', flexWrap: 'wrap', gap: wp(2.5)},
   chip: {
     borderRadius: 999,
-    backgroundColor: CHIP_FILL,
+
     paddingHorizontal: wp(4),
     paddingVertical: hp(1),
   },

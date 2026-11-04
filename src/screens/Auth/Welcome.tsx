@@ -32,19 +32,19 @@ const navigation = useNavigation<any>();
           accessible
           accessibilityRole="image"
           accessibilityLabel="Flatmate">
-          <View style={[styles.logoMark, {backgroundColor: colors.lightGreen}]}>
+          <View style={[styles.logoMark, {backgroundColor: colors.accent}]}>
             <Icon name="flatware" size={wp(7)} color={colors.black} />
           </View>
-          <Text style={[styles.wordmark, {color: colors.white}]}>Flatmate</Text>
+          <Text style={[styles.wordmark, {color: colors.text}]}>Flatmate</Text>
         </View>
 
         {/* Headline */}
         <View style={styles.hero}>
-          <Text style={[styles.headline, {color: colors.white}]}>
+          <Text style={[styles.headline, {color: colors.text}]}>
             Everything about living together,{' '}
-            <Text style={{color: colors.lightGreen}}>in one place.</Text>
+            <Text style={{color: colors.accent}}>in one place.</Text>
           </Text>
-          <Text style={[styles.subtitle, {color: colors.surfaceAlt}]}>
+          <Text style={[styles.subtitle, {color: colors.textSecondary}]}>
             Bills, chores, groceries and repairs for your whole flat.
           </Text>
         </View>
@@ -59,9 +59,9 @@ const navigation = useNavigation<any>();
               <View
                 style={[
                   styles.featureIcon,
-                  { borderColor: colors.white},
+                  { borderColor: colors.text},
                 ]}>
-                <Icon name={item.icon} size={wp(6.5)} color={colors.lightGreen} />
+                <Icon name={item.icon} size={wp(6.5)} color={colors.accent} />
               </View>
               <Text style={[styles.featureLabel, {color: colors.textMuted}]}>
                 {item.label}

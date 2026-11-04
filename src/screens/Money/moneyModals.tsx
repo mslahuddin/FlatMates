@@ -40,16 +40,16 @@ import {
 import type {ReceiptDraft} from '../../services/expense';
 import {pickReceipt, receiptErrorMessage} from './Receipts';
 import type {Member} from '../../services/flat';
-import {useColors} from '../../theme';
+import {useColors , MONO} from '../../theme';
+
 
 /**
  * Money forms: Add expense and Add bill, plus the bill writes to Firestore.
  * The Money screen only has to render <AddExpenseModal /> and <AddBillModal />.
  */
 
-const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
-const OWE_COLOR = '#EBA24F';
-const CARD_BORDER = 'rgba(255,255,255,0.12)';
+
+
 
 /* ============================================================
  * Bill types and Firestore writes
@@ -347,18 +347,32 @@ export const FieldCard = ({
   children: React.ReactNode;
 }) => {
   const colors = useColors();
+
   return (
     <View>
       <View
         style={[
           s.field,
-          error ? s.fieldError : active && {borderColor: colors.lightGreen},
+          {
+            backgroundColor: colors.card,
+            borderColor: error
+              ? colors.warning
+              : active
+                ? colors.accent
+                : colors.cardBorder,
+          },
+          error && s.fieldError,
         ]}>
-        <Text style={[s.fieldLabel, {color: colors.textMuted}]}>{label}</Text>
+        <Text style={[s.fieldLabel, {color: colors.textMuted}]}>
+          {label}
+        </Text>
         {children}
       </View>
+
       {error ? (
-        <Text style={s.errorText} accessibilityRole="alert">
+        <Text
+          style={[s.errorText, {color: colors.warning}]}
+          accessibilityRole="alert">
           {error}
         </Text>
       ) : null}
@@ -392,12 +406,12 @@ const PaidByField = ({
               accessibilityLabel={`${member.name}${
                 member.id === me ? ', you' : ''
               }`}
-              style={[s.chip, selected && {borderColor: colors.lightGreen}]}>
+              style={[s.chip, {borderColor: colors.cardBorder,}, selected && {borderColor: colors.accent}]}>
               {selected ? (
                 <View
                   style={[
                     StyleSheet.absoluteFill,
-                    {backgroundColor: colors.lightGreen, opacity: 0.16},
+                    {backgroundColor: colors.accent, opacity: 0.16},
                   ]}
                 />
               ) : null}
@@ -405,7 +419,7 @@ const PaidByField = ({
               <Text
                 style={[
                   s.chipText,
-                  {color: selected ? colors.white : colors.surfaceAlt},
+                  {color: selected ? colors.text : colors.textSecondary},
                   selected && s.chipTextSelected,
                 ]}>
                 {member.name}
@@ -462,9 +476,9 @@ const ReceiptField = ({
       onPress={() => pick(source)}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({pressed}) => [s.receiptButton, pressed && s.pressed]}>
-      <Icon name={icon} size={wp(5.5)} color={colors.lightGreen} />
-      <Text style={[s.receiptButtonText, {color: colors.white}]}>{label}</Text>
+      style={({pressed}) => [s.receiptButton, {borderColor: colors.cardBorder , backgroundColor: colors.chip}, pressed && s.pressed]}>
+      <Icon name={icon} size={wp(5.5)} color={colors.accent} />
+      <Text style={[s.receiptButtonText, {color: colors.text}]}>{label}</Text>
     </Pressable>
   );
 
@@ -479,12 +493,12 @@ const ReceiptField = ({
             accessibilityLabel="Receipt photo"
           />
           <View style={s.flex}>
-            <Text style={[s.input, {color: colors.white}]}>Receipt added</Text>
+            <Text style={[s.input, {color: colors.text}]}>Receipt added</Text>
             <Pressable
               onPress={() => pick('camera')}
               hitSlop={wp(2)}
               accessibilityRole="button">
-              <Text style={[s.receiptLink, {color: colors.lightGreen}]}>
+              <Text style={[s.receiptLink, {color: colors.accent}]}>
                 Retake
               </Text>
             </Pressable>
@@ -498,7 +512,7 @@ const ReceiptField = ({
           </Pressable>
         </View>
       ) : busy ? (
-        <ActivityIndicator color={colors.lightGreen} style={s.receiptBusy} />
+        <ActivityIndicator color={colors.accent} style={s.receiptBusy} />
       ) : (
         <View style={s.receiptOptions}>
           <Option icon="photo-camera" label="Camera" source="camera" />
@@ -529,12 +543,12 @@ export const SplitChip = ({
       accessibilityRole="checkbox"
       accessibilityState={{checked: on}}
       accessibilityLabel={a11y}
-      style={[s.chip, on && {borderColor: colors.lightGreen}]}>
+      style={[s.chip ,{borderColor: colors.cardBorder,}, on && {borderColor: colors.accent}]}>
       {on ? (
         <View
           style={[
             StyleSheet.absoluteFill,
-            {backgroundColor: colors.lightGreen, opacity: 0.16},
+            {backgroundColor: colors.accent, opacity: 0.16},
           ]}
         />
       ) : null}
@@ -542,13 +556,13 @@ export const SplitChip = ({
       <Text
         style={[
           s.chipText,
-          {color: on ? colors.white : colors.surfaceAlt},
+          {color: on ? colors.text : colors.textSecondary},
           on && s.chipTextSelected,
         ]}>
         {label}
       </Text>
       {on ? (
-        <Icon name="check" size={wp(4.5)} color={colors.lightGreen} />
+        <Icon name="check" size={wp(4.5)} color={colors.accent} />
       ) : null}
     </Pressable>
   );
@@ -609,8 +623,8 @@ const SplitField = ({
           label="Everyone"
           a11y="Everyone in the flat"
           onPress={() => onChange(members.map(m => m.id))}>
-          <View style={[s.everyoneIcon, {borderColor: CARD_BORDER}]}>
-            <Icon name="groups" size={wp(5)} color={colors.lightGreen} />
+          <View style={[s.everyoneIcon, {borderColor: colors.cardBorder}]}>
+            <Icon name="groups" size={wp(5)} color={colors.accent} />
           </View>
         </SplitChip>
         {members.map((member, index) => (
@@ -658,13 +672,13 @@ export const DateField = ({
         accessibilityRole="button"
         accessibilityLabel={`${label}, ${formatDate(date)}. Change date`}
         style={s.dateRow}>
-        <Text style={[s.dateText, {color: colors.white}]}>
+        <Text style={[s.dateText, {color: colors.text}]}>
           {formatDate(date)}
         </Text>
         <Icon
           name={open ? 'expand-less' : 'event'}
           size={wp(6)}
-          color={colors.lightGreen}
+          color={colors.accent}
         />
       </Pressable>
       {open ? (
@@ -675,7 +689,7 @@ export const DateField = ({
           maximumDate={maximumDate}
           minimumDate={minimumDate}
           themeVariant="dark"
-          accentColor={colors.lightGreen}
+          accentColor={colors.accent}
           onChange={(event, selected) => {
             if (Platform.OS !== 'ios') {
               setOpen(false);
@@ -736,18 +750,18 @@ export const Sheet = ({
             accessibilityRole="button"
             accessibilityLabel="Cancel"
             style={s.cancel}>
-            <Icon name="chevron-left" size={wp(7)} color={colors.lightGreen} />
-            <Text style={[s.cancelText, {color: colors.lightGreen}]}>
+            <Icon name="chevron-left" size={wp(7)} color={colors.accent} />
+            <Text style={[s.cancelText, {color: colors.accent}]}>
               Cancel
             </Text>
           </Pressable>
 
-          <Text style={[s.title, {color: colors.white}]}>{title}</Text>
+          <Text style={[s.title, {color: colors.text}]}>{title}</Text>
 
           {children}
 
           {formError ? (
-            <Text style={s.errorText} accessibilityRole="alert">
+            <Text style={[s.errorText, {color: colors.warning}]} accessibilityRole="alert">
               {formError}
             </Text>
           ) : null}
@@ -761,7 +775,7 @@ export const Sheet = ({
             accessibilityLabel={buttonLabel}
             style={({pressed}) => [
               s.button,
-              {backgroundColor: colors.lightGreen},
+              {backgroundColor: colors.accent},
               (pressed || saving) && s.pressed,
             ]}>
             <Text style={[s.buttonText, {color: colors.black}]}>
@@ -905,12 +919,12 @@ export const AddExpenseModal = ({
             onBlur={() => setFocus(null)}
             placeholder="0.00"
             placeholderTextColor={colors.textMuted}
-            selectionColor={colors.lightGreen}
+            selectionColor={colors.accent}
             keyboardType="decimal-pad"
             maxLength={10}
             autoFocus
             accessibilityLabel="Amount in pounds"
-            style={[s.amountInput, {color: colors.white}]}
+            style={[s.amountInput, {color: colors.text}]}
           />
         </View>
       </FieldCard>
@@ -930,12 +944,12 @@ export const AddExpenseModal = ({
           onBlur={() => setFocus(null)}
           placeholder="Weekly groceries, pizza night"
           placeholderTextColor={colors.textMuted}
-          selectionColor={colors.lightGreen}
+          selectionColor={colors.accent}
           autoCapitalize="sentences"
           maxLength={60}
           returnKeyType="done"
           accessibilityLabel="Description"
-          style={[s.input, {color: colors.white}]}
+          style={[s.input, {color: colors.text}]}
         />
       </FieldCard>
 
@@ -1091,13 +1105,13 @@ export const AddBillModal = ({
           onBlur={() => setFocus(null)}
           placeholder="Internet, rent, electricity"
           placeholderTextColor={colors.textMuted}
-          selectionColor={colors.lightGreen}
+          selectionColor={colors.accent}
           autoCapitalize="sentences"
           maxLength={40}
           autoFocus
           returnKeyType="next"
           accessibilityLabel="Bill name"
-          style={[s.input, {color: colors.white}]}
+          style={[s.input, {color: colors.text}]}
         />
       </FieldCard>
 
@@ -1118,11 +1132,11 @@ export const AddBillModal = ({
             onBlur={() => setFocus(null)}
             placeholder="0.00"
             placeholderTextColor={colors.textMuted}
-            selectionColor={colors.lightGreen}
+            selectionColor={colors.accent}
             keyboardType="decimal-pad"
             maxLength={10}
             accessibilityLabel="Amount in pounds"
-            style={[s.input, s.flex, {color: colors.white}]}
+            style={[s.input, s.flex, {color: colors.text}]}
           />
         </View>
       </FieldCard>
@@ -1171,6 +1185,7 @@ export const AddBillModal = ({
  * ============================================================ */
 
 const s = StyleSheet.create({
+  
   sheet: {flex: 1},
   flex: {flex: 1},
   content: {
@@ -1191,13 +1206,12 @@ const s = StyleSheet.create({
   field: {
     borderRadius: wp(5),
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: 'rgba(0,0,0,0.28)',
+   
     paddingHorizontal: wp(4.5),
     paddingVertical: hp(1.4),
     gap: hp(0.6),
   },
-  fieldError: {borderColor: OWE_COLOR, backgroundColor: '#3A2A17'},
+  fieldError: { backgroundColor: '#3A2A17'},
   fieldLabel: {
     fontFamily: MONO,
     fontSize: 13,
@@ -1205,7 +1219,6 @@ const s = StyleSheet.create({
     letterSpacing: 1.6,
   },
   errorText: {
-    color: OWE_COLOR,
     fontSize: 16,
     lineHeight: 22,
     marginTop: hp(0.8),
@@ -1230,7 +1243,7 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    
     paddingVertical: hp(0.6),
     paddingLeft: wp(1.5),
     paddingRight: wp(3.5),
@@ -1267,8 +1280,6 @@ const s = StyleSheet.create({
     gap: wp(2),
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     paddingVertical: hp(1.2),
   },
   receiptButtonText: {fontSize: 17, fontWeight: '600'},
@@ -1277,7 +1288,7 @@ const s = StyleSheet.create({
     width: wp(15),
     height: wp(15),
     borderRadius: wp(3),
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'colors.chip)',
   },
   receiptLink: {fontSize: 16, fontWeight: '600', marginTop: 2},
   receiptBusy: {paddingVertical: hp(1.2)},

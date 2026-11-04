@@ -151,12 +151,12 @@ export const ReceiptThumb = ({
 }) => {
   const colors = useColors();
   const {uri, loading} = useReceipt(flatId, receiptId);
-  const box = [r.thumb, {width: size, height: size, borderRadius: size * 0.28}];
+  const box = [r.thumb, {width: size, height: size, borderRadius: size * 0.28 ,  backgroundColor: colors.chip,}];
 
   const content = uri ? (
     <Image source={{uri}} style={r.fill} resizeMode="cover" />
   ) : loading ? (
-    <ActivityIndicator color={colors.lightGreen} />
+    <ActivityIndicator color={colors.accent} />
   ) : (
     <Icon name={fallbackIcon} size={size * 0.5} color={colors.textMuted} />
   );
@@ -204,14 +204,14 @@ export const ReceiptViewer = ({
       <View style={[r.sheet, {backgroundColor: colors.background}]}>
         {/* The header sits above the picture, so nothing can cover the ✕. */}
         <View style={r.header}>
-          <Text style={[r.headerTitle, {color: colors.white}]}>Receipt</Text>
+          <Text style={[r.headerTitle, {color: colors.text}]}>Receipt</Text>
           <Pressable
             onPress={onClose}
             hitSlop={wp(3)}
             accessibilityRole="button"
             accessibilityLabel="Close receipt"
             style={r.close}>
-            <Icon name="close" size={wp(6)} color={colors.white} />
+            <Icon name="close" size={wp(6)} color={colors.text} />
           </Pressable>
         </View>
 
@@ -238,9 +238,9 @@ export const ReceiptViewer = ({
               />
             </ScrollView>
           ) : loading ? (
-            <ActivityIndicator color={colors.lightGreen} />
+            <ActivityIndicator color={colors.accent} />
           ) : failed ? (
-            <Text style={[r.message, {color: colors.surfaceAlt}]}>
+            <Text style={[r.message, {color: colors.textSecondary}]}>
               This receipt couldn't be loaded.
             </Text>
           ) : null}
@@ -254,7 +254,6 @@ const r = StyleSheet.create({
   fill: {width: '100%', height: '100%'},
   thumb: {
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',

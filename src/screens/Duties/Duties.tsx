@@ -27,9 +27,11 @@ import {MemberAvatar} from '../../components/memberAvatar';
 import {SegmentedControl} from '../../components/segmentedControl';
 import {useFlat} from '../../hooks/useFlat';
 import type {Member} from '../../services/flat';
-import {useColors} from '../../theme';
+import {useColors , MONO} from '../../theme';
 import {AddDutyModal, deleteDuty, dutyErrorMessage, setDutyDone} from './dutyModals';
 import type {Duty} from './dutyModals';
+
+
 
 type Tab = 'mine' | 'all' | 'done';
 
@@ -39,13 +41,11 @@ const TABS: {value: Tab; label: string}[] = [
   {value: 'done', label: 'Done'},
 ];
 
-const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
+
 
 /** Red = deadline passed. Orange = deadline close. Green = done. */
-const RED = '#E5675B';
-const ORANGE = '#EBA24F';
-const GREEN = '#7BC98F';
-const CARD_BORDER = 'rgba(255,255,255,0.12)';
+
+
 
 /** A duty counts as "due soon" when its deadline is today or within this many days. */
 const SOON_DAYS = 2;
@@ -98,35 +98,7 @@ const dueText = (status: Status, deadline: Date, now: Date) => {
   return `Due in ${plural(days)} · ${shortDate(deadline)}`;
 };
 
-const TONE: Record<
-  Status,
-  {accent: string; border: string; bg: string; label: string | null}
-> = {
-  open: {
-    accent: 'rgba(255,255,255,0.18)',
-    border: CARD_BORDER,
-    bg: 'rgba(0,0,0,0.28)',
-    label: null,
-  },
-  soon: {
-    accent: ORANGE,
-    border: 'rgba(235,162,79,0.45)',
-    bg: 'rgba(235,162,79,0.10)',
-    label: 'DUE SOON',
-  },
-  overdue: {
-    accent: RED,
-    border: 'rgba(229,103,91,0.5)',
-    bg: 'rgba(229,103,91,0.10)',
-    label: 'OVERDUE',
-  },
-  done: {
-    accent: GREEN,
-    border: 'rgba(123,201,143,0.4)',
-    bg: 'rgba(123,201,143,0.08)',
-    label: 'DONE',
-  },
-};
+
 
 /** Most urgent first: overdue, due soon, open, then done. */
 const ORDER: Record<Status, number> = {overdue: 0, soon: 1, open: 2, done: 3};
@@ -199,7 +171,7 @@ const AddButton = ({onPress}: {onPress: () => void}) => {
       accessibilityLabel="Assign duty"
       style={({pressed}) => [
         s.addButton,
-        {backgroundColor: colors.lightGreen},
+        {backgroundColor: colors.accent},
         pressed && s.pressed,
       ]}>
       <Icon name="add" size={wp(8)} color={colors.black} />
@@ -228,13 +200,13 @@ const DeleteButton = ({
       accessibilityState={{disabled: !enabled}}
       style={({pressed}) => [
         s.deleteButton,
-        enabled ? {backgroundColor: 'rgba(229,103,91,0.16)'} : s.deleteDisabled,
+        enabled ? {backgroundColor: colors.dangerBg} : s.deleteDisabled,
         pressed && s.pressed,
       ]}>
       <Icon
         name="delete-outline"
         size={wp(5.5)}
-        color={enabled ? RED : colors.textMuted}
+        color={enabled ? colors.danger : colors.textMuted}
       />
     </Pressable>
   );
@@ -273,8 +245,34 @@ const DutyCard = ({
   onToggleDone,
   onDelete,
 }: DutyCardProps) => {
-  const colors = useColors();
-  const tone = TONE[status];
+const colors = useColors();
+
+const tone = {
+  open: {
+    accent: colors.divider,
+    border: colors.cardBorder,
+    bg: colors.card,
+    label: null,
+  },
+  soon: {
+    accent: colors.warning,
+    border: 'rgba(235,162,79,0.45)',
+    bg: colors.warningBg,
+    label: 'DUE SOON',
+  },
+  overdue: {
+    accent: colors.danger,
+    border: 'rgba(229,103,91,0.5)',
+    bg: colors.dangerBg,
+    label: 'OVERDUE',
+  },
+  done: {
+    accent: colors.success,
+    border: 'rgba(123,201,143,0.4)',
+    bg: colors.successBg,
+    label: 'DONE',
+  },
+}[status];
   const required = requiredPeople(duty, members);
   const doneCount = required.filter(uid => duty.doneBy.includes(uid)).length;
   const iAmAssigned = duty.assignedTo.includes(me);
@@ -288,7 +286,7 @@ const DutyCard = ({
 
       <View style={s.cardTop}>
         <Text
-          style={[s.cardTitle, {color: colors.white}]}
+          style={[s.cardTitle, {color: colors.text}]}
           numberOfLines={2}>
           {duty.title}
         </Text>
@@ -301,7 +299,7 @@ const DutyCard = ({
 
       {duty.description ? (
         <Text
-          style={[s.description, {color: colors.surfaceAlt}]}
+          style={[s.description, {color: colors.textSecondary}]}
           numberOfLines={3}>
           {duty.description}
         </Text>
@@ -328,7 +326,7 @@ const DutyCard = ({
               <View key={uid} style={s.avatarWrap}>
                 <MemberAvatar name={name} index={Math.max(0, index)} size={wp(9.5)} />
                 {done ? (
-                  <View style={[s.tick, {backgroundColor: GREEN}]}>
+                  <View style={[s.tick, {backgroundColor: colors.success}]}>
                     <Icon name="check" size={wp(3)} color="#0F1A14" />
                   </View>
                 ) : null}
@@ -351,17 +349,17 @@ const DutyCard = ({
             style={({pressed}) => [
               s.doneButton,
               iDidIt
-                ? {borderColor: GREEN, backgroundColor: 'rgba(123,201,143,0.14)'}
-                : {borderColor: colors.lightGreen, backgroundColor: colors.lightGreen},
+                ? {borderColor: colors.success, backgroundColor: 'rgba(123,201,143,0.14)'}
+                : {borderColor: colors.accent, backgroundColor: colors.accent},
               (pressed || busy) && s.pressed,
             ]}>
             <Icon
               name={iDidIt ? 'check-circle' : 'check'}
               size={wp(5)}
-              color={iDidIt ? GREEN : colors.black}
+              color={iDidIt ? colors.success : colors.black}
             />
             <Text
-              style={[s.doneText, {color: iDidIt ? GREEN : colors.black}]}>
+              style={[s.doneText, {color: iDidIt ? colors.success : colors.black}]}>
               {iDidIt ? 'Done · tap to undo' : 'Mark as done'}
             </Text>
           </Pressable>
@@ -521,7 +519,7 @@ const Duties = () => {
 
   const renderBody = () => {
     if (flatLoading || (flat && dutiesLoading)) {
-      return <ActivityIndicator color={colors.lightGreen} style={s.loader} />;
+      return <ActivityIndicator color={colors.accent} style={s.loader} />;
     }
     if (flatError || dutiesError) {
       return (
@@ -546,12 +544,19 @@ const Duties = () => {
     return (
       <>
         {duties.length > 0 ? (
-          <View style={s.summary}>
-            <Stat value={counts.overdue} label="overdue" color={RED} />
-            <View style={s.divider} />
-            <Stat value={counts.soon} label="due soon" color={ORANGE} />
-            <View style={s.divider} />
-            <Stat value={counts.done} label="done" color={GREEN} />
+         <View
+  style={[
+    s.summary,
+    {
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.card,
+    },
+  ]}>
+            <Stat value={counts.overdue} label="overdue" color={colors.danger} />
+         <View style={[s.divider, {backgroundColor: colors.divider}]} />
+            <Stat value={counts.soon} label="due soon" color={colors.warning} />
+           <View style={[s.divider, {backgroundColor: colors.divider}]} />
+            <Stat value={counts.done} label="done" color={colors.success} />
           </View>
         ) : null}
 
@@ -572,7 +577,7 @@ const Duties = () => {
       edges={['top', 'left', 'right']}
       style={[s.screen, {backgroundColor: colors.background}]}>
       <View style={s.header}>
-        <Text style={[s.title, {color: colors.white}]}>Duties</Text>
+        <Text style={[s.title, {color: colors.text}]}>Duties</Text>
         {isOwner ? <AddButton onPress={() => setAdding(true)} /> : null}
       </View>
 
@@ -640,8 +645,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     borderRadius: wp(5),
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: 'rgba(0,0,0,0.28)',
     paddingVertical: hp(1.8),
   },
   stat: {flex: 1, alignItems: 'center', gap: 2},
@@ -650,7 +653,7 @@ const s = StyleSheet.create({
   divider: {
     width: StyleSheet.hairlineWidth,
     height: hp(4.5),
-    backgroundColor: 'rgba(255,255,255,0.18)',
+   
   },
 
   card: {

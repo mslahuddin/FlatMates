@@ -49,7 +49,7 @@ const TabBar = ({state, descriptors, navigation}: BottomTabBarProps) => {
           typeof options.tabBarLabel === 'string'
             ? options.tabBarLabel
             : (options.title ?? route.name);
-        const color = focused ? colors.lightGreen : colors.textMuted;
+        const color = focused ? colors.accent : colors.textMuted;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -103,16 +103,16 @@ const Placeholder = ({
       edges={['top', 'left', 'right']}
       style={[styles.screen, {backgroundColor: colors.background}]}>
       <View style={styles.content}>
-        <Text style={[styles.title, {color: colors.white}]}>{title}</Text>
+        <Text style={[styles.title, {color: colors.text}]}>{title}</Text>
 
         <View style={styles.center}>
-          <View style={[styles.circle, {borderColor: colors.lightGreen}]}>
-            <Icon name={icon} size={wp(8)} color={colors.lightGreen} />
+          <View style={[styles.circle, {borderColor: colors.accent}]}>
+            <Icon name={icon} size={wp(8)} color={colors.accent} />
           </View>
-          <Text style={[styles.headline, {color: colors.white}]}>
+          <Text style={[styles.headline, {color: colors.text}]}>
             Coming soon
           </Text>
-          <Text style={[styles.message, {color: colors.surfaceAlt}]}>
+          <Text style={[styles.message, {color: colors.textSecondary}]}>
             {message}
           </Text>
         </View>

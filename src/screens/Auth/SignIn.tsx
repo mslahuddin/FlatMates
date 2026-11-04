@@ -73,7 +73,7 @@ const onSignIn = async () => {
           showsVerticalScrollIndicator={false}>
           <Back title="Back" />
 
-          <Text style={[styles.title, {color: colors.white}]}>
+          <Text style={[styles.title, {color: colors.text}]}>
             Welcome back
           </Text>
 
@@ -133,7 +133,7 @@ const onSignIn = async () => {
             accessibilityRole="button"
             accessibilityLabel="Forgot password"
             style={styles.forgot}>
-            <Text style={[styles.forgotText, {color: colors.lightGreen}]}>
+            <Text style={[styles.forgotText, {color: colors.accent}]}>
               Forgot password?
             </Text>
           </Pressable>

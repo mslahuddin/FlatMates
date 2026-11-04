@@ -47,7 +47,7 @@ import {
   expenseErrorMessage,
 } from '../../services/expense';
 import type {Member} from '../../services/flat';
-import {useColors} from '../../theme';
+import {MONO ,useColors} from '../../theme';
 
 type Tab = 'balances' | 'expenses' | 'bills';
 
@@ -57,12 +57,7 @@ const TABS: {value: Tab; label: string}[] = [
   {value: 'bills', label: 'Bills'},
 ];
 
-const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
-const OWE_COLOR = '#EBA24F';
-const OWED_COLOR = '#7BC98F';
-const DELETE_COLOR = '#E5675B';
-const CARD_BORDER = 'rgba(255,255,255,0.12)';
-const BILL_BG = '#3F2D1A';
+
 
 /* ---------- Small building blocks ---------- */
 
@@ -86,7 +81,7 @@ const AddButton = ({
       accessibilityLabel={label}
       style={({pressed}) => [
         styles.addButton,
-        {backgroundColor: colors.lightGreen},
+        {backgroundColor: colors.accent},
         pressed && styles.pressed,
       ]}>
       <Icon name="add" size={wp(8)} color={colors.black} />
@@ -116,14 +111,14 @@ const DeleteButton = ({
       style={({pressed}) => [
         styles.deleteButton,
         enabled
-          ? {backgroundColor: 'rgba(229,103,91,0.16)'}
+          ? {backgroundColor: colors.dangerBg}
           : styles.deleteDisabled,
         pressed && styles.pressed,
       ]}>
       <Icon
         name="delete-outline"
         size={wp(5.5)}
-        color={enabled ? DELETE_COLOR : colors.textMuted}
+        color={enabled ? colors.danger : colors.textMuted}
       />
     </Pressable>
   );
@@ -139,10 +134,17 @@ const NetCard = ({
   owed: number;
 }) => {
   const colors = useColors();
-  const netColor = net > 0 ? OWED_COLOR : net < 0 ? OWE_COLOR : colors.white;
+  const netColor = net > 0 ? colors.success : net < 0 ? colors.warning : colors.text;
 
   return (
-    <View style={styles.card}>
+    <View
+    style={[
+      styles.card,
+      {
+        borderColor: colors.cardBorder,
+        backgroundColor: colors.card,
+      },
+    ]}>
       <Label text="NET BALANCE" />
       <Text
         style={[styles.netAmount, {color: netColor}]}
@@ -150,20 +152,20 @@ const NetCard = ({
         {formatPence(net, true)}
       </Text>
       {net === 0 ? (
-        <Text style={[styles.settledText, {color: colors.surfaceAlt}]}>
+        <Text style={[styles.settledText, {color: colors.textSecondary}]}>
           You're all settled with everyone.
         </Text>
       ) : (
         <View style={styles.totals}>
-          <Text style={[styles.totalText, {color: colors.surfaceAlt}]}>
+          <Text style={[styles.totalText, {color: colors.textSecondary}]}>
             You owe{' '}
-            <Text style={[styles.totalValue, {color: OWE_COLOR}]}>
+            <Text style={[styles.totalValue, {color: colors.warning}]}>
               {formatPence(owe)}
             </Text>
           </Text>
-          <Text style={[styles.totalText, {color: colors.surfaceAlt}]}>
+          <Text style={[styles.totalText, {color: colors.textSecondary}]}>
             You are owed{' '}
-            <Text style={[styles.totalValue, {color: OWED_COLOR}]}>
+            <Text style={[styles.totalValue, {color: colors.success}]}>
               {formatPence(owed)}
             </Text>
           </Text>
@@ -206,7 +208,7 @@ const PersonRow = ({
       style={({pressed}) => [styles.personRow, pressed && styles.pressed]}>
       <MemberAvatar name={name} index={index} size={wp(12)} />
       <Text
-        style={[styles.personName, {color: colors.white}]}
+        style={[styles.personName, {color: colors.text}]}
         numberOfLines={1}>
         {name}
       </Text>
@@ -215,10 +217,10 @@ const PersonRow = ({
         <View
           style={[
             StyleSheet.absoluteFill,
-            {backgroundColor: colors.lightGreen, opacity: 0.16},
+            {backgroundColor: colors.accent, opacity: 0.16},
           ]}
         />
-        <Text style={[styles.settleText, {color: colors.lightGreen}]}>
+        <Text style={[styles.settleText, {color: colors.accent}]}>
           {action === 'settle' ? 'Settle' : 'Received'}
         </Text>
       </View>
@@ -296,8 +298,8 @@ const FilterChip = ({
       style={({pressed}) => [
         x.chip,
         selected
-          ? {backgroundColor: colors.lightGreen}
-          : {backgroundColor: 'rgba(255,255,255,0.06)'},
+          ? {backgroundColor: colors.accent}
+          : {backgroundColor: 'colors.chip)'},
         pressed && styles.pressed,
       ]}>
       <Text
@@ -337,7 +339,15 @@ const FeedRow = ({
 }) => {
   const colors = useColors();
   return (
-    <View style={[x.row, divider && x.rowDivider]}>
+<View
+  style={[
+    x.row,
+    divider && [
+      x.rowDivider,
+      {borderBottomColor: colors.divider},
+    ],
+  ]}
+>
       {thumb}
       <View
         accessible
@@ -345,7 +355,7 @@ const FeedRow = ({
         style={x.rowBody}>
         <View style={x.rowLeft}>
           <Text
-            style={[x.rowTitle, {color: colors.white}]}
+            style={[x.rowTitle, {color: colors.text}]}
             numberOfLines={1}>
             {title}
           </Text>
@@ -354,7 +364,7 @@ const FeedRow = ({
           </Text>
         </View>
         <View style={x.rowRight}>
-          <Text style={[x.rowAmount, {color: amountColor ?? colors.white}]}>
+          <Text style={[x.rowAmount, {color: amountColor ?? colors.text}]}>
             {amount}
           </Text>
           <Text style={[x.rowSub, {color: colors.textMuted}]}>{note}</Text>
@@ -386,6 +396,7 @@ const ExpensesTab = ({
 }: ExpensesTabProps) => {
   const [filter, setFilter] = useState<Filter>('all');
   const [viewing, setViewing] = useState<string | null>(null);
+  const colors = useColors();
 
   /** Asks first, then marks the expense deleted. Balances recalculate. */
   const confirmDelete = (item: Extract<FeedItem, {kind: 'expense'}>) => {
@@ -490,7 +501,7 @@ const ExpensesTab = ({
           title={title}
           sub={`${nameOf(item.fromUid)} · ${shortDate(item.date)}`}
           amount={formatPence(item.amountPence)}
-          amountColor={OWED_COLOR}
+          amountColor={colors.success}
           note="settled"
           divider={divider}
           thumb={
@@ -605,7 +616,6 @@ const x = StyleSheet.create({
   },
   rowDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.18)',
   },
   rowLeft: {flex: 1, gap: 2},
   rowRight: {alignItems: 'flex-end', gap: 2},
@@ -616,8 +626,7 @@ const x = StyleSheet.create({
   banner: {
     borderRadius: wp(5),
     borderWidth: 1,
-    borderColor: OWE_COLOR,
-    backgroundColor: BILL_BG,
+
     padding: wp(5),
     gap: hp(0.8),
   },
@@ -629,13 +638,13 @@ const x = StyleSheet.create({
   },
   bannerTitle: {
     flex: 1,
-    color: OWE_COLOR,
+   
     fontSize: 21,
     lineHeight: 27,
     fontWeight: '700',
   },
   bannerDate: {
-    color: OWE_COLOR,
+   
     fontFamily: MONO,
     fontSize: 16,
     marginTop: 4,
@@ -653,7 +662,7 @@ const x = StyleSheet.create({
   },
   billDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.18)',
+    
   },
   billLeft: {flex: 1, gap: 2},
   billRight: {alignItems: 'flex-end', gap: 2},
@@ -777,7 +786,7 @@ const BillsTab = ({
 
   if (loading) {
     return (
-      <ActivityIndicator color={colors.lightGreen} style={styles.loader} />
+      <ActivityIndicator color={colors.accent} style={styles.loader} />
     );
   }
   if (error) {
@@ -816,7 +825,13 @@ const BillsTab = ({
     return (
       <View
         key={bill.id}
-        style={[x.billWrap, i < list.length - 1 && x.billDivider]}>
+         style={[
+    x.billWrap,
+    i < list.length - 1 && [
+      x.billDivider,
+      {borderBottomColor: colors.divider},
+    ],
+  ]}>
         <ReceiptThumb
           flatId={flatId}
           receiptId={bill.receiptId}
@@ -837,7 +852,7 @@ const BillsTab = ({
           style={({pressed}) => [x.billRow, pressed && styles.pressed]}>
           <View style={x.billLeft}>
             <Text
-              style={[x.billTitle, {color: colors.white}]}
+              style={[x.billTitle, {color: colors.text}]}
               numberOfLines={1}>
               {bill.name}
             </Text>
@@ -848,11 +863,11 @@ const BillsTab = ({
             </Text>
           </View>
           <View style={x.billRight}>
-            <Text style={[x.billTitle, {color: colors.white}]}>
+            <Text style={[x.billTitle, {color: colors.text}]}>
               {formatPence(bill.amountPence)}
             </Text>
             <Text
-              style={[x.billSub, {color: late ? OWE_COLOR : colors.textMuted}]}>
+              style={[x.billSub, {color: late ? colors.warning : colors.textMuted}]}>
               {dueDate(bill.nextDue)}
             </Text>
           </View>
@@ -878,12 +893,19 @@ const BillsTab = ({
           onPress={() => onOpen(next)}
           accessibilityRole="button"
           accessibilityLabel={`${dueSentence(next.name, nextDays)}. Options`}
-          style={({pressed}) => [x.banner, pressed && styles.pressed]}>
+         style={({pressed}) => [
+  x.banner,
+  {
+    borderColor: colors.warning,
+    backgroundColor: colors.warningBg,
+  },
+  pressed && styles.pressed,
+]}>
           <View style={x.bannerTop}>
-            <Text style={x.bannerTitle} numberOfLines={2}>
+            <Text style={[x.bannerTitle ,{color: colors.warning}]} numberOfLines={2}>
               {dueSentence(next.name, nextDays)}
             </Text>
-            <Text style={x.bannerDate}>{dueDate(next.nextDue)}</Text>
+            <Text style={[x.bannerDate,{color: colors.warning}]}>{dueDate(next.nextDue)}</Text>
           </View>
           <Text style={[x.bannerSub, {color: colors.textMuted}]}>
             {formatPence(next.amountPence)}
@@ -1112,7 +1134,7 @@ const Money = () => {
                 member={memberOf(p.uid)}
                 index={indexOf(p.uid)}
                 pence={p.pence}
-                color={OWE_COLOR}
+                color={colors.warning}
                 action="settle"
                 onPress={() => settleUp(p.uid, p.pence)}
               />
@@ -1129,7 +1151,7 @@ const Money = () => {
                 member={memberOf(p.uid)}
                 index={indexOf(p.uid)}
                 pence={p.pence}
-                color={OWED_COLOR}
+                color={colors.success}
                 action="received"
                 onPress={() => markReceived(p.uid, p.pence)}
               />
@@ -1181,7 +1203,7 @@ const Money = () => {
   const renderBody = () => {
     if (flatLoading || (flat && ledgerLoading)) {
       return (
-        <ActivityIndicator color={colors.lightGreen} style={styles.loader} />
+        <ActivityIndicator color={colors.accent} style={styles.loader} />
       );
     }
     if (flatError || ledgerError) {
@@ -1217,7 +1239,7 @@ const Money = () => {
       edges={['top', 'left', 'right']}
       style={[styles.screen, {backgroundColor: colors.background}]}>
       <View style={styles.header}>
-        <Text style={[styles.title, {color: colors.white}]}>Money</Text>
+        <Text style={[styles.title, {color: colors.text}]}>Money</Text>
         {flat ? (
           <AddButton
             onPress={tab === 'bills' ? addBill : addExpense}
@@ -1298,8 +1320,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: wp(5),
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: 'rgba(0,0,0,0.28)',
+  
     padding: wp(5),
     gap: hp(1),
   },

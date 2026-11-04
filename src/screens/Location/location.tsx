@@ -27,7 +27,7 @@ import {
 } from 'react-native-responsive-screen';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {EmptyState} from '../../components/emptyState';
-import {AVATAR_COLORS, MemberAvatar} from '../../components/memberAvatar';
+import { MemberAvatar} from '../../components/memberAvatar';
 import {useFlat} from '../../hooks/useFlat';
 import {
   askForAlways,
@@ -37,9 +37,9 @@ import {
   stopSharing,
 } from '../../services/location';
 import type {LocPermission, StoredLocation} from '../../services/location';
-import {useColors} from '../../theme';
+import {useColors , MONO , AVATAR_COLORS} from '../../theme';
 
-const MONO = Platform.select({ios: 'Menlo', default: 'monospace'});
+
 const GREEN = '#7BC98F';
 const ORANGE = '#EBA24F';
 const CARD_BORDER = 'rgba(255,255,255,0.12)';
@@ -50,6 +50,7 @@ const LIVE_MINUTES = 10;
 const PUBLISH_EVERY_MS = 60_000;
 /** Ignore tiny movements. Metres. */
 const DISTANCE_FILTER = 30;
+
 
 /* ---------- Live data ---------- */
 
@@ -129,8 +130,11 @@ const lastSeenAt = (d: Date, now: Date) => {
 type Kind = 'live' | 'lastSeen' | 'disabled' | 'waiting';
 
 type Status = {kind: Kind; color: string; title: string; detail: string};
-
-const statusOf = (loc: StoredLocation | undefined, now: Date): Status => {
+const statusOf = (
+  loc: StoredLocation | undefined,
+  now: Date,
+  colors: ReturnType<typeof useColors>,
+): Status => {
   if (!loc) {
     return {
       kind: 'waiting',
@@ -163,14 +167,14 @@ const statusOf = (loc: StoredLocation | undefined, now: Date): Status => {
   if (loc.permission === 'always' && fresh) {
     return {
       kind: 'live',
-      color: GREEN,
+      color: colors.success,
       title: 'Live',
       detail: `Updated ${ago(loc.updatedAt, now)}`,
     };
   }
   return {
     kind: 'lastSeen',
-    color: ORANGE,
+    color: colors.warning,
     title: `Last seen ${lastSeenAt(loc.updatedAt, now)}`,
     detail:
       loc.permission === 'always'
@@ -182,10 +186,11 @@ const statusOf = (loc: StoredLocation | undefined, now: Date): Status => {
 /* ---------- Screen ---------- */
 
 const Location = () => {
-  const colors = useColors();
+ 
   const scheme = useColorScheme();
   const mapRef = useRef<MapView>(null);
   const fittedRef = useRef(false);
+  const colors = useColors();
 
   const {loading, error: flatError, flat, members} = useFlat();
   const {locs, error: locError, ready} = useLocations(flat?.id);
@@ -402,7 +407,7 @@ const Location = () => {
   if (loading) {
     return (
       <SafeAreaView style={[s.screen, {backgroundColor: colors.background}]}>
-        <ActivityIndicator color={colors.lightGreen} style={s.loader} />
+        <ActivityIndicator color={colors.accent} style={s.loader} />
       </SafeAreaView>
     );
   }
@@ -431,7 +436,7 @@ const Location = () => {
       edges={['top', 'left', 'right']}
       style={[s.screen, {backgroundColor: colors.background}]}>
       <View style={s.header}>
-        <Text style={[s.title, {color: colors.white}]}>Location</Text>
+        <Text style={[s.title, {color: colors.text}]}>Location</Text>
       </View>
 
       <View style={s.mapWrap}>
@@ -447,7 +452,7 @@ const Location = () => {
             longitudeDelta: 0.2,
           }}>
           {pins.map(({m, index, loc}) => {
-            const st = statusOf(loc, now);
+           const st = statusOf(loc, now, colors);
             return (
               <Marker
                 key={`${m.id}-${loc!.updatedAt?.getTime() ?? 0}-${st.kind}`}
@@ -484,10 +489,10 @@ const Location = () => {
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}>
         {/* My own sharing settings */}
-        <View style={s.card}>
+      <View style={[s.card, {backgroundColor: colors.card , borderColor: colors.cardBorder}]}>
           <View style={s.row}>
             <View style={s.flex}>
-              <Text style={[s.cardTitle, {color: colors.white}]}>
+              <Text style={[s.cardTitle, {color: colors.text}]}>
                 Share my location
               </Text>
               <Text style={[s.sub, {color: colors.textMuted}]}>
@@ -503,15 +508,15 @@ const Location = () => {
             <Switch
               value={sharingNow}
               onValueChange={toggleShare}
-              trackColor={{true: colors.lightGreen}}
+              trackColor={{true: colors.accent}}
               accessibilityLabel="Share my location"
             />
           </View>
 
           {sharingNow ? (
             <View style={s.banner}>
-              <Icon name="location-on" size={wp(4.6)} color={GREEN} />
-              <Text style={[s.bannerText, {color: GREEN}]}>
+              <Icon name="location-on" size={wp(4.6)} color={colors.success} />
+              <Text style={[s.bannerText, {color: colors.success}]}>
                 {others > 0
                   ? `Sharing with ${others} flatmate${others === 1 ? '' : 's'}`
                   : 'Sharing with your flat'}
@@ -524,7 +529,7 @@ const Location = () => {
               onPress={upgradeToAlways}
               accessibilityRole="button"
               style={({pressed}) => [s.linkBtn, pressed && s.pressed]}>
-              <Text style={[s.linkText, {color: colors.lightGreen}]}>
+              <Text style={[s.linkText, {color: colors.accent}]}>
                 Allow always, so flatmates see you when the app is closed
               </Text>
             </Pressable>
@@ -535,7 +540,7 @@ const Location = () => {
               onPress={() => Linking.openSettings()}
               accessibilityRole="button"
               style={({pressed}) => [s.linkBtn, pressed && s.pressed]}>
-              <Text style={[s.linkText, {color: colors.lightGreen}]}>
+              <Text style={[s.linkText, {color: colors.accent}]}>
                 Open Settings to allow location
               </Text>
             </Pressable>
@@ -545,7 +550,7 @@ const Location = () => {
         <Text style={[s.label, {color: colors.textMuted}]}>FLATMATES</Text>
 
         {members.map((m, index) => {
-          const st = statusOf(locs[m.id], now);
+         const st = statusOf(locs[m.id], now, colors);
           const canFocus = st.kind === 'live' || st.kind === 'lastSeen';
           return (
             <Pressable
@@ -554,10 +559,10 @@ const Location = () => {
               disabled={!canFocus}
               accessibilityRole="button"
               accessibilityLabel={`${m.name}. ${st.title}. ${st.detail}`}
-              style={({pressed}) => [s.card, s.memberRow, pressed && s.pressed]}>
+              style={({pressed}) => [s.card,  s.memberRow,   {backgroundColor: colors.card, borderColor: colors.cardBorder},pressed && s.pressed]}>
               <MemberAvatar name={m.name} index={index} size={wp(11)} />
               <View style={s.flex}>
-                <Text style={[s.cardTitle, {color: colors.white}]}>
+                <Text style={[s.cardTitle, {color: colors.text}]}>
                   {m.name}
                   {m.id === me ? ' (you)' : ''}
                 </Text>
@@ -638,9 +643,7 @@ const s = StyleSheet.create({
   label: {fontFamily: MONO, fontSize: 13, fontWeight: '500', letterSpacing: 1.6},
   card: {
     borderRadius: wp(5),
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: 'rgba(0,0,0,0.28)',
+    borderWidth: 1,    
     padding: wp(4.5),
     gap: hp(1),
   },
