@@ -299,7 +299,7 @@ const FilterChip = ({
         x.chip,
         selected
           ? {backgroundColor: colors.accent}
-          : {backgroundColor: 'colors.chip)'},
+          : {backgroundColor: colors.chip},
         pressed && styles.pressed,
       ]}>
       <Text

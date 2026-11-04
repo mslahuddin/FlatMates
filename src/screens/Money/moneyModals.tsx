@@ -488,7 +488,7 @@ const ReceiptField = ({
         <View style={s.receiptRow}>
           <Image
             source={{uri: `data:${value.mime};base64,${value.base64}`}}
-            style={s.receiptPreview}
+            style={[s.receiptPreview , {backgroundColor: colors.chip}]}
             resizeMode="cover"
             accessibilityLabel="Receipt photo"
           />
@@ -1288,7 +1288,7 @@ const s = StyleSheet.create({
     width: wp(15),
     height: wp(15),
     borderRadius: wp(3),
-    backgroundColor: 'colors.chip)',
+   
   },
   receiptLink: {fontSize: 16, fontWeight: '600', marginTop: 2},
   receiptBusy: {paddingVertical: hp(1.2)},
