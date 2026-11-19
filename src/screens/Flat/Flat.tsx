@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  Linking,
   View,
   type StyleProp,
   type ViewStyle,
@@ -405,6 +406,17 @@ const Flat = () => {
     );
   };
 
+  const openAccessibility = () => {
+  Alert.alert(
+    'Turn on accessibility',
+    'In Settings, go to Accessibility. There you can turn on VoiceOver, larger text and more.',
+    [
+      {text: 'Cancel', style: 'cancel'},
+      {text: 'Open Settings', onPress: () => Linking.openSettings()},
+    ], 
+  );
+};
+
   const renderBody = () => {
     if (loading) {
       return (
@@ -464,6 +476,23 @@ const Flat = () => {
           color={avatarColor(myIndex)}
           role={me?.role}
         />
+
+        <Pressable
+  onPress={openAccessibility}
+  accessibilityRole="button"
+  accessibilityLabel="Accessibility settings"
+  accessibilityHint="Opens the Settings app"
+  style={({pressed}) => [
+    styles.settingsRow,
+    {borderColor: colors.cardBorder, backgroundColor: colors.card},
+    pressed && styles.pressed,
+  ]}>
+  <Icon name="accessibility-new" size={wp(6)} color={colors.accent} />
+  <Text style={[styles.settingsText, {color: colors.text}]}>
+    Accessibility
+  </Text>
+  <Icon name="chevron-right" size={wp(5.5)} color={colors.textMuted} />
+</Pressable>
 
         <Pressable
           onPress={confirmLeave}
@@ -526,6 +555,16 @@ const styles = StyleSheet.create({
   hint: {fontSize: 16, lineHeight: 22},
 
   title: {fontSize: 34, lineHeight: 39, fontWeight: '700', letterSpacing: -0.8},
+  settingsRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: wp(3.5),
+  borderRadius: wp(4),
+  borderWidth: 1,
+  paddingVertical: hp(1.7),
+  paddingHorizontal: wp(4.5),
+},
+settingsText: {flex: 1, fontSize: 17, fontWeight: '600'},
 
   card: {
     borderRadius: wp(5),
