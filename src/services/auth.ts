@@ -38,14 +38,13 @@ export function authErrorMessage(e: unknown): string {
   }
 }
 
-export async function signUp(email: string, password: string, name?: string) {
+export async function signUp(email: string, password: string, name: string) {
   const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-  if (name) {
-    await updateProfile(cred.user, {displayName: name.trim()});
-  }
+  const clean = name.trim();
+  await updateProfile(cred.user, {displayName: clean});
   await setDoc(doc(db, 'users', cred.user.uid), {
     email: cred.user.email,
-    name: name?.trim() ?? '',
+    name: clean,
     flatId: null,
     createdAt: serverTimestamp(),
   });

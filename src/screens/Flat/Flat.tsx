@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  Linking,
   View,
   type StyleProp,
   type ViewStyle,
@@ -20,6 +19,7 @@ import {
 } from 'react-native-responsive-screen';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {getAuth} from '@react-native-firebase/auth';
+import {useNavigation} from '@react-navigation/native';
 import {
   leaveFlat,
   removeMember,
@@ -27,6 +27,9 @@ import {
   type Member,
 } from '../../services/flat';
 import {useFlat} from '../../hooks/useFlat';
+import {useLedger} from '../../hooks/useLedger';
+import {computeBalances, formatPence} from '../../libs/money';
+import {transferOwnership} from '../../services/ownership';
 import {useColors} from '../../theme';
 import {MONO , AVATAR_COLORS} from '../../theme'
 
@@ -330,7 +333,14 @@ const MemberModal = ({
 
 const Flat = () => {
   const colors = useColors();
+  const navigation = useNavigation<any>();
   const {loading, error, flat, members} = useFlat();
+  const {
+    loading: ledgerLoading,
+    error: ledgerError,
+    expenses,
+    settlements,
+  } = useLedger(flat?.id);
 
   const authUser = getAuth().currentUser;
   const myId = authUser?.uid;
@@ -343,6 +353,21 @@ const Flat = () => {
   // Derived from live data, so the modal closes itself if the member is removed.
   const selected = members.find(m => m.id === selectedId) ?? null;
   const selectedIndex = members.findIndex(m => m.id === selectedId);
+
+  const balances = useMemo(
+    () => computeBalances(myId ?? '', expenses, settlements),
+    [myId, expenses, settlements],
+  );
+
+  // The next owner is whoever joined earliest after me.
+  const nextOwner = useMemo(() => {
+    const joined = (m: Member) => m.joinedAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    return (
+      members
+        .filter(m => m.id !== myId)
+        .sort((a, b) => joined(a) - joined(b))[0] ?? null
+    );
+  }, [members, myId]);
 
   const me = members.find(m => m.id === myId);
   const myIndex = members.findIndex(m => m.id === myId);
@@ -381,41 +406,79 @@ const Flat = () => {
   };
 
   const confirmLeave = () => {
-    Alert.alert(
-      'Leave this flat?',
-      isOwner
-        ? 'As the owner, you can only leave once you are the last flatmate. The flat and its invite code will be deleted.'
-        : 'You will lose access to this flat. You can rejoin with a new invite code.',
-      [
-        {text: 'Cancel', style: 'cancel'},
-        {
-          text: 'Leave flat',
-          style: 'destructive',
-          onPress: async () => {
-            setLeaving(true);
-            try {
-              await leaveFlat();
-              // useFlat sees flatId cleared and the dashboard returns to its empty state.
-            } catch (e) {
-              Alert.alert("Couldn't leave flat", flatErrorMessage(e));
-              setLeaving(false);
-            }
-          },
-        },
-      ],
-    );
-  };
+    if (ledgerError) {
+      Alert.alert(
+        "Couldn't check your balance",
+        'Check your connection and try again.',
+      );
+      return;
+    }
+    if (ledgerLoading) {
+      Alert.alert('One moment', 'Checking your balance. Try again in a second.');
+      return;
+    }
 
-  const openAccessibility = () => {
-  Alert.alert(
-    'Turn on accessibility',
-    'In Settings, go to Accessibility. There you can turn on VoiceOver, larger text and more.',
-    [
+    // You can't leave while you owe someone.
+    if (balances.oweTotal > 0) {
+      const lines = balances.owe
+        .map(
+          p =>
+            `${members.find(m => m.id === p.uid)?.name ?? 'Former flatmate'}: ${formatPence(
+              p.pence,
+            )}`,
+        )
+        .join('\n');
+      Alert.alert(
+        "You can't leave yet",
+        `You still owe ${formatPence(
+          balances.oweTotal,
+        )}:\n\n${lines}\n\nSettle up in Money first, then you can leave.`,
+        [
+          {text: 'OK', style: 'cancel'},
+          {text: 'Go to Money', onPress: () => navigation.navigate('Money')},
+        ],
+      );
+      return;
+    }
+
+    let message: string;
+    if (isOwner && nextOwner) {
+      message = `${nextOwner.name} joined next, so they will become the owner. You will lose access to this flat.`;
+    } else if (isOwner) {
+      message =
+        'You are the last flatmate. The flat and its invite code will be deleted.';
+    } else {
+      message =
+        'You will lose access to this flat. You can rejoin with a new invite code.';
+    }
+    if (balances.owedTotal > 0) {
+      message += `\n\nYou are still owed ${formatPence(
+        balances.owedTotal,
+      )}. After you leave, that can't be collected in the app.`;
+    }
+
+    Alert.alert('Leave this flat?', message, [
       {text: 'Cancel', style: 'cancel'},
-      {text: 'Open Settings', onPress: () => Linking.openSettings()},
-    ], 
-  );
-};
+      {
+        text: 'Leave flat',
+        style: 'destructive',
+        onPress: async () => {
+          setLeaving(true);
+          try {
+            // The owner hands the flat to the next person first, then leaves as a normal flatmate.
+            if (isOwner && nextOwner && flat) {
+              await transferOwnership(flat.id, nextOwner.id);
+            }
+            await leaveFlat();
+            // useFlat sees flatId cleared and the dashboard returns to its empty state.
+          } catch (e) {
+            Alert.alert("Couldn't leave flat", flatErrorMessage(e));
+            setLeaving(false);
+          }
+        },
+      },
+    ]);
+  };
 
   const renderBody = () => {
     if (loading) {
@@ -478,23 +541,6 @@ const Flat = () => {
         />
 
         <Pressable
-  onPress={openAccessibility}
-  accessibilityRole="button"
-  accessibilityLabel="Accessibility settings"
-  accessibilityHint="Opens the Settings app"
-  style={({pressed}) => [
-    styles.settingsRow,
-    {borderColor: colors.cardBorder, backgroundColor: colors.card},
-    pressed && styles.pressed,
-  ]}>
-  <Icon name="accessibility-new" size={wp(6)} color={colors.accent} />
-  <Text style={[styles.settingsText, {color: colors.text}]}>
-    Accessibility
-  </Text>
-  <Icon name="chevron-right" size={wp(5.5)} color={colors.textMuted} />
-</Pressable>
-
-        <Pressable
           onPress={confirmLeave}
           disabled={leaving}
           accessibilityRole="button"
@@ -555,16 +601,6 @@ const styles = StyleSheet.create({
   hint: {fontSize: 16, lineHeight: 22},
 
   title: {fontSize: 34, lineHeight: 39, fontWeight: '700', letterSpacing: -0.8},
-  settingsRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: wp(3.5),
-  borderRadius: wp(4),
-  borderWidth: 1,
-  paddingVertical: hp(1.7),
-  paddingHorizontal: wp(4.5),
-},
-settingsText: {flex: 1, fontSize: 17, fontWeight: '600'},
 
   card: {
     borderRadius: wp(5),

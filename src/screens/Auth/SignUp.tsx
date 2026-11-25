@@ -22,21 +22,30 @@ import {useColors} from '../../theme';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
+const MIN_NAME = 2;
+const MAX_NAME = 30;
 
-type Errors = {email?: string; password?: string};
+type Errors = {name?: string; email?: string; password?: string};
 
 const SignUp = () => {
   const colors = useColors();
   const navigation = useNavigation<any>();
+  const emailRef = useRef<TextFieldRef>(null);
   const passwordRef = useRef<TextFieldRef>(null);
   const [loading, setLoading] = useState(false);
 
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   const validate = () => {
     const next: Errors = {};
+    const trimmed = name.trim();
+    if (trimmed.length < MIN_NAME || trimmed.length > MAX_NAME) {
+      next.name = `Enter the name your flatmates will see (${MIN_NAME}-${MAX_NAME} characters).`;
+    }
     if (!EMAIL_RE.test(email.trim())) {
       next.email = 'Enter a valid email address.';
     }
@@ -47,19 +56,25 @@ const SignUp = () => {
     return Object.keys(next).length === 0;
   };
 
-const onContinue = async () => {
-  if (!validate()) return;           // your existing email/password checks
-  try {
-    setLoading(true);
-    await signUp(email, password);
-  } catch (e) {
-    const msg = authErrorMessage(e);
-    if (msg.toLowerCase().includes('email')) setEmailError(msg);
-    else setFormError(msg);
-  } finally {
-    setLoading(false);
-  }
-};
+  const onContinue = async () => {
+    if (loading || !validate()) {
+      return;
+    }
+    setFormError(null);
+    try {
+      setLoading(true);
+      await signUp(email, password, name);
+    } catch (e) {
+      const msg = authErrorMessage(e);
+      if (msg.toLowerCase().includes('email')) {
+        setErrors(prev => ({...prev, email: msg}));
+      } else {
+        setFormError(msg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.screen, {backgroundColor: colors.background}]}>
@@ -85,6 +100,26 @@ const onContinue = async () => {
 
           <View style={styles.form}>
             <TextField
+              label="Display name"
+              value={name}
+              onChangeText={text => {
+                setName(text);
+                if (errors.name) {
+                  setErrors(e => ({...e, name: undefined}));
+                }
+              }}
+              error={errors.name}
+              hint="This is the name your flatmates will see."
+              placeholder="Ahmed"
+              autoCapitalize="words"
+              autoComplete="name"
+              textContentType="name"
+              maxLength={MAX_NAME}
+              returnKeyType="next"
+              onSubmitEditing={() => emailRef.current?.focus()}
+            />
+            <TextField
+              ref={emailRef}
               label="Email"
               value={email}
               onChangeText={text => {
@@ -120,6 +155,13 @@ const onContinue = async () => {
               returnKeyType="done"
               onSubmitEditing={onContinue}
             />
+            {formError ? (
+              <Text
+                style={[styles.formError, {color: colors.warning}]}
+                accessibilityLiveRegion="polite">
+                {formError}
+              </Text>
+            ) : null}
           </View>
         </ScrollView>
 
@@ -167,4 +209,5 @@ const styles = StyleSheet.create({
   switchRow: {alignItems: 'center', paddingVertical: hp(1.6)},
   switchText: {fontSize: 16},
   switchLink: {fontWeight: '700'},
+  formError: {fontSize: 16, lineHeight: 22},
 });
