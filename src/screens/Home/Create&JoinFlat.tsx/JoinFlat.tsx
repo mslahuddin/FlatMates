@@ -135,15 +135,7 @@ const JoinFlat = () => {
             />
           </View>
 
-          <Pressable
-            onPress={() => navigation.navigate('ScanQR')}
-            accessibilityRole="button"
-            accessibilityLabel="Scan QR code"
-            style={({pressed}) => [[styles.scan, { backgroundColor: colors.chip,}], pressed && styles.pressed]}>
-            <Text style={[styles.scanText, {color: colors.text}]}>
-              Scan QR code
-            </Text>
-          </Pressable>
+         
 
           {error ? (
             <Text

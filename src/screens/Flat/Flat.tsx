@@ -475,6 +475,10 @@ const Flat = () => {
             Alert.alert("Couldn't leave flat", flatErrorMessage(e));
             setLeaving(false);
           }
+          ///
+           finally {
+    setLeaving(false);
+  }
         },
       },
     ]);

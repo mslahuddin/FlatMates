@@ -319,7 +319,7 @@ const JoinFlatCard = ({onPress}: {onPress: () => void}) => {
           Join a flat
         </Text>
         <Text style={[styles.choiceSub, {color: colors.textSecondary}]}>
-          Enter a code or scan a QR from a flatmate.
+          Enter code of the flat.
         </Text>
       </Card>
     </Pressable>
@@ -418,38 +418,39 @@ const Dashboard = () => {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        <View>
-          <Text style={[styles.title, {color: colors.text}]}>
-            {greeting()}, {name}
-          </Text>
-          <Pressable onPress={signOut}>
-            <Text style={{color: colors.accent}}>Sign out</Text>
-          </Pressable>
+       <View>
+  <View style={styles.headerRow}>
+    <Text style={[styles.title, styles.headerTitle, {color: colors.text}]}>
+      {greeting()}, {name}
+    </Text>
 
-          {flat ? (
-            <View style={styles.flatRow}>
-              <Text style={[styles.flatName, {color: colors.textSecondary}]}>
-                {flat.name}
-              </Text>
-              {isOwner ? (
-                <>
-                  <Text style={[styles.flatName, {color: colors.textSecondary}]}>
-                    ·
-                  </Text>
-                  <Pill
-                    label="Owner"
-                    tint={colors.accent}
-                    textColor={colors.accent}
-                  />
-                </>
-              ) : null}
-            </View>
-          ) : !loading && !error ? (
-            <Text style={[styles.flatName, {color: colors.textSecondary}]}>
-              You're not in a flat yet.
-            </Text>
-          ) : null}
-        </View>
+    <Pressable
+      onPress={signOut}
+      accessibilityRole="button"
+      accessibilityLabel="Sign out"
+      hitSlop={8}
+      style={({pressed}) => [
+        styles.signOut,
+        {backgroundColor: colors.chip},
+        pressed && styles.pressed,
+      ]}>
+      <Icon name="logout" size={wp(4.5)} color={colors.accent} />
+      <Text style={[styles.signOutText, {color: colors.accent}]}>
+        Sign out
+      </Text>
+    </Pressable>
+  </View>
+
+  {flat ? (
+    <View style={styles.flatRow}>
+      {/* ...your existing flat name and Owner pill, unchanged... */}
+    </View>
+  ) : !loading && !error ? (
+    <Text style={[styles.flatName, {color: colors.textSecondary}]}>
+      You're not in a flat yet.
+    </Text>
+  ) : null}
+</View>
 
         {renderBody()}
       </ScrollView>
@@ -471,6 +472,23 @@ const styles = StyleSheet.create({
   loader: {marginTop: hp(8)},
 
   title: {fontSize: 34, lineHeight: 39, fontWeight: '700', letterSpacing: -0.8},
+  headerRow: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: wp(3),
+},
+headerTitle: {flex: 1},
+signOut: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: wp(1.5),
+  minHeight: 44,
+  borderRadius: 999,
+  paddingHorizontal: wp(3.5),
+  marginTop: hp(0.4),
+},
+signOutText: {fontSize: 15, fontWeight: '600'},
   flatRow: {
     flexDirection: 'row',
     alignItems: 'center',

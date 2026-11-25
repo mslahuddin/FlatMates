@@ -108,3 +108,4 @@ export const darkColors: Colors = {
 export function useColors(): Colors {
   return useColorScheme() === 'dark' ? darkColors : lightColors;
 }
+export const useIsDark = () => useColorScheme() === 'dark';

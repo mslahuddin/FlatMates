@@ -113,18 +113,7 @@ const FlatCreated = () => {
           />
         </View>
 
-        <View
-          style={styles.qr}
-          accessible
-          accessibilityLabel={`QR code for invite code ${inviteCode}`}>
-          <QRCode
-            value={inviteCode}
-            size={QR_SIZE}
-            color={QR_FOREGROUND}
-            backgroundColor={QR_BACKGROUND}
-            quietZone={wp(2)}
-          />
-        </View>
+       
 
         <View style={styles.actions}>
           <Pressable
@@ -136,15 +125,7 @@ const FlatCreated = () => {
               {copied ? 'Copied' : 'Copy code'}
             </Text>
           </Pressable>
-          <Pressable
-            onPress={onShare}
-            accessibilityRole="button"
-            accessibilityLabel="Share invite link"
-            style={({pressed}) => [styles.action, {backgroundColor: colors.chip}, pressed && styles.pressed]}>
-            <Text style={[styles.actionText, {color: colors.text}]}>
-              Share link
-            </Text>
-          </Pressable>
+         
         </View>
       </View>
 

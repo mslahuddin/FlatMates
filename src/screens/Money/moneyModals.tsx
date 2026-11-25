@@ -40,7 +40,7 @@ import {
 import type {ReceiptDraft} from '../../services/expense';
 import {pickReceipt, receiptErrorMessage} from './Receipts';
 import type {Member} from '../../services/flat';
-import {useColors , MONO} from '../../theme';
+import {useColors, useIsDark, MONO} from '../../theme';
 
 
 /**
@@ -664,6 +664,7 @@ export const DateField = ({
   minimumDate?: Date;
 }) => {
   const colors = useColors();
+  const isDark = useIsDark();
   const [open, setOpen] = useState(false);
   return (
     <FieldCard label={label} active={open}>
@@ -688,7 +689,7 @@ export const DateField = ({
           display={Platform.OS === 'ios' ? 'inline' : 'default'}
           maximumDate={maximumDate}
           minimumDate={minimumDate}
-          themeVariant="dark"
+          themeVariant={isDark ? 'dark' : 'light'}
           accentColor={colors.accent}
           onChange={(event, selected) => {
             if (Platform.OS !== 'ios') {
@@ -978,6 +979,7 @@ export const AddExpenseModal = ({
 
       <DateField
         label="DATE"
+        
         date={date}
         onChange={setDate}
         maximumDate={new Date()}

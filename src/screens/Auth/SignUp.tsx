@@ -110,7 +110,7 @@ const SignUp = () => {
               }}
               error={errors.name}
               hint="This is the name your flatmates will see."
-              placeholder="Ahmed"
+              placeholder="John"
               autoCapitalize="words"
               autoComplete="name"
               textContentType="name"

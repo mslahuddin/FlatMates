@@ -123,7 +123,7 @@ const CreateFlat = () => {
         maxMembers,
       });
       navigation.replace('FlatReady', {
-        flatName: flat.name,
+        flatName: name.trim(),
         inviteCode: flat.inviteCode,
       });
     } catch {

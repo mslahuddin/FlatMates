@@ -31,8 +31,8 @@ const SignIn = () => {
   const passwordRef = useRef<TextFieldRef>(null);
   const [loading, setLoading] = useState(false);
 
-  const [email, setEmail] = useState('@gmail.com');
-  const [password, setPassword] = useState('12345678');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   // Set when the server rejects the sign-in. Marks both fields and shows one message.
   const [formError, setFormError] = useState<string | null>(null);
